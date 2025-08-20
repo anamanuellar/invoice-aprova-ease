@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthFormData {
   email: string;
@@ -17,6 +17,7 @@ interface AuthFormData {
 export default function AuthForm() {
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors }, reset } = useForm<AuthFormData>();
+  const { toast } = useToast();
 
   const handleSignUp = async (data: AuthFormData) => {
     setLoading(true);
@@ -34,41 +35,79 @@ export default function AuthForm() {
 
       if (error) {
         if (error.message.includes('User already registered')) {
-          toast.error('Este e-mail já está cadastrado. Tente fazer login.');
+          toast({
+            title: "Erro",
+            description: "Este e-mail já está cadastrado. Tente fazer login.",
+            variant: "destructive",
+          });
         } else {
-          toast.error(error.message);
+          toast({
+            title: "Erro",
+            description: error.message,
+            variant: "destructive",
+          });
         }
       } else {
-        toast.success('Conta criada com sucesso! Verifique seu e-mail para confirmação.');
+        toast({
+          title: "Sucesso",
+          description: "Conta criada com sucesso! Verifique seu e-mail para confirmação.",
+        });
         reset();
       }
     } catch (error) {
-      toast.error('Erro inesperado. Tente novamente.');
+      toast({
+        title: "Erro",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSignIn = async (data: AuthFormData) => {
+    console.log('handleSignIn chamado com:', data);
     setLoading(true);
     try {
+      console.log('Tentando fazer login no Supabase...');
       const { error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
+      console.log('Resposta do Supabase:', { error });
+      
       if (error) {
+        console.error('Erro de login:', error);
         if (error.message.includes('Invalid login credentials')) {
-          toast.error('E-mail ou senha incorretos.');
+          toast({
+            title: "Erro",
+            description: "E-mail ou senha incorretos.",
+            variant: "destructive",
+          });
         } else {
-          toast.error(error.message);
+          toast({
+            title: "Erro",
+            description: error.message,
+            variant: "destructive",
+          });
         }
       } else {
-        toast.success('Login realizado com sucesso!');
+        console.log('Login bem-sucedido!');
+        toast({
+          title: "Sucesso",
+          description: "Login realizado com sucesso!",
+        });
       }
     } catch (error) {
-      toast.error('Erro inesperado. Tente novamente.');
+      console.error('Erro não capturado:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
+      console.log('Finalizando processo de login, setLoading(false)');
       setLoading(false);
     }
   };
