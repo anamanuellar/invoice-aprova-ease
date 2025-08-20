@@ -22,23 +22,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    console.log('Auth useEffect iniciando...');
+    let mounted = true;
+    
+    // Timeout para garantir que não fique carregando forever
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.log('Timeout atingido, parando loading');
+        setLoading(false);
+      }
+    }, 5000);
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
+        console.log('Auth state changed:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        clearTimeout(timeout);
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check for existing session
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (!mounted) return;
+        console.log('Getting session:', session, error);
+        if (error) {
+          console.error('Erro ao obter sessão:', error);
+        }
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        clearTimeout(timeout);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        console.error('Erro ao obter sessão:', error);
+        setLoading(false);
+        clearTimeout(timeout);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
