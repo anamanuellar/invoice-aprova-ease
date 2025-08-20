@@ -14,7 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      centros_custo: {
+        Row: {
+          codigo: string | null
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      setores: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      solicitacoes_nf: {
+        Row: {
+          arquivo_nf_url: string | null
+          centro_custo_id: string
+          cnpj_fornecedor: string
+          comentario_financeiro: string | null
+          comentario_gestor: string | null
+          created_at: string
+          data_analise_financeira: string | null
+          data_aprovacao_gestor: string | null
+          data_emissao: string
+          data_envio: string
+          data_vencimento: string
+          id: string
+          nome_fornecedor: string
+          nome_solicitante: string
+          numero_nf: string
+          previsao_pagamento: string | null
+          produto_servico: string
+          setor_id: string
+          solicitante_id: string
+          status: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          arquivo_nf_url?: string | null
+          centro_custo_id: string
+          cnpj_fornecedor: string
+          comentario_financeiro?: string | null
+          comentario_gestor?: string | null
+          created_at?: string
+          data_analise_financeira?: string | null
+          data_aprovacao_gestor?: string | null
+          data_emissao: string
+          data_envio?: string
+          data_vencimento: string
+          id?: string
+          nome_fornecedor: string
+          nome_solicitante: string
+          numero_nf: string
+          previsao_pagamento?: string | null
+          produto_servico: string
+          setor_id: string
+          solicitante_id: string
+          status?: string
+          updated_at?: string
+          valor_total: number
+        }
+        Update: {
+          arquivo_nf_url?: string | null
+          centro_custo_id?: string
+          cnpj_fornecedor?: string
+          comentario_financeiro?: string | null
+          comentario_gestor?: string | null
+          created_at?: string
+          data_analise_financeira?: string | null
+          data_aprovacao_gestor?: string | null
+          data_emissao?: string
+          data_envio?: string
+          data_vencimento?: string
+          id?: string
+          nome_fornecedor?: string
+          nome_solicitante?: string
+          numero_nf?: string
+          previsao_pagamento?: string | null
+          produto_servico?: string
+          setor_id?: string
+          solicitante_id?: string
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_nf_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_nf_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_nf_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
