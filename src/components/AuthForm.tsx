@@ -16,8 +16,11 @@ interface AuthFormData {
 
 export default function AuthForm() {
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<AuthFormData>();
   const { toast } = useToast();
+  
+  // Separate forms for login and signup
+  const loginForm = useForm<AuthFormData>();
+  const signupForm = useForm<AuthFormData>();
 
   const handleSignUp = async (data: AuthFormData) => {
     setLoading(true);
@@ -52,7 +55,7 @@ export default function AuthForm() {
           title: "Sucesso",
           description: "Conta criada com sucesso! Verifique seu e-mail para confirmação.",
         });
-        reset();
+        signupForm.reset();
       }
     } catch (error) {
       toast({
@@ -127,14 +130,14 @@ export default function AuthForm() {
             </TabsList>
             
             <TabsContent value="login">
-              <form onSubmit={handleSubmit(handleSignIn)} className="space-y-4">
+              <form onSubmit={loginForm.handleSubmit(handleSignIn)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="seu@email.com"
-                    {...register('email', { 
+                    {...loginForm.register('email', { 
                       required: 'E-mail é obrigatório',
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -142,8 +145,8 @@ export default function AuthForm() {
                       }
                     })}
                   />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  {loginForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
                   )}
                 </div>
                 
@@ -153,7 +156,7 @@ export default function AuthForm() {
                     id="password"
                     type="password"
                     placeholder="••••••••"
-                    {...register('password', { 
+                    {...loginForm.register('password', { 
                       required: 'Senha é obrigatória',
                       minLength: {
                         value: 6,
@@ -161,8 +164,8 @@ export default function AuthForm() {
                       }
                     })}
                   />
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  {loginForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
                   )}
                 </div>
                 
@@ -173,17 +176,17 @@ export default function AuthForm() {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSubmit(handleSignUp)} className="space-y-4">
+              <form onSubmit={signupForm.handleSubmit(handleSignUp)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome completo</Label>
                   <Input
                     id="name"
                     type="text"
                     placeholder="Seu nome completo"
-                    {...register('name', { required: 'Nome é obrigatório' })}
+                    {...signupForm.register('name', { required: 'Nome é obrigatório' })}
                   />
-                  {errors.name && (
-                    <p className="text-sm text-destructive">{errors.name.message}</p>
+                  {signupForm.formState.errors.name && (
+                    <p className="text-sm text-destructive">{signupForm.formState.errors.name.message}</p>
                   )}
                 </div>
                 
@@ -193,7 +196,7 @@ export default function AuthForm() {
                     id="signup-email"
                     type="email"
                     placeholder="seu@email.com"
-                    {...register('email', { 
+                    {...signupForm.register('email', { 
                       required: 'E-mail é obrigatório',
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -201,8 +204,8 @@ export default function AuthForm() {
                       }
                     })}
                   />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  {signupForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">{signupForm.formState.errors.email.message}</p>
                   )}
                 </div>
                 
@@ -212,7 +215,7 @@ export default function AuthForm() {
                     id="signup-password"
                     type="password"
                     placeholder="••••••••"
-                    {...register('password', { 
+                    {...signupForm.register('password', { 
                       required: 'Senha é obrigatória',
                       minLength: {
                         value: 6,
@@ -220,8 +223,8 @@ export default function AuthForm() {
                       }
                     })}
                   />
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  {signupForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">{signupForm.formState.errors.password.message}</p>
                   )}
                 </div>
                 
