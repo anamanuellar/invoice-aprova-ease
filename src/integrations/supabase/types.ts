@@ -35,6 +35,27 @@ export type Database = {
         }
         Relationships: []
       }
+      empresas: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -82,20 +103,31 @@ export type Database = {
       }
       solicitacoes_nf: {
         Row: {
+          agencia: string | null
+          arquivo_boleto_url: string | null
           arquivo_nf_url: string | null
+          banco: string | null
           centro_custo_id: string
+          chave_pix: string | null
+          cnpj_cpf_titular: string | null
           cnpj_fornecedor: string
           comentario_financeiro: string | null
           comentario_gestor: string | null
+          conta_corrente: string | null
           created_at: string
           data_analise_financeira: string | null
           data_aprovacao_gestor: string | null
           data_emissao: string
           data_envio: string
           data_vencimento: string
+          empresa_id: string | null
+          forma_pagamento: string | null
           id: string
+          justificativa_divergencia_titular: string | null
+          justificativa_vencimento_antecipado: string | null
           nome_fornecedor: string
           nome_solicitante: string
+          nome_titular_conta: string | null
           numero_nf: string
           previsao_pagamento: string | null
           produto_servico: string
@@ -106,20 +138,31 @@ export type Database = {
           valor_total: number
         }
         Insert: {
+          agencia?: string | null
+          arquivo_boleto_url?: string | null
           arquivo_nf_url?: string | null
+          banco?: string | null
           centro_custo_id: string
+          chave_pix?: string | null
+          cnpj_cpf_titular?: string | null
           cnpj_fornecedor: string
           comentario_financeiro?: string | null
           comentario_gestor?: string | null
+          conta_corrente?: string | null
           created_at?: string
           data_analise_financeira?: string | null
           data_aprovacao_gestor?: string | null
           data_emissao: string
           data_envio?: string
           data_vencimento: string
+          empresa_id?: string | null
+          forma_pagamento?: string | null
           id?: string
+          justificativa_divergencia_titular?: string | null
+          justificativa_vencimento_antecipado?: string | null
           nome_fornecedor: string
           nome_solicitante: string
+          nome_titular_conta?: string | null
           numero_nf: string
           previsao_pagamento?: string | null
           produto_servico: string
@@ -130,20 +173,31 @@ export type Database = {
           valor_total: number
         }
         Update: {
+          agencia?: string | null
+          arquivo_boleto_url?: string | null
           arquivo_nf_url?: string | null
+          banco?: string | null
           centro_custo_id?: string
+          chave_pix?: string | null
+          cnpj_cpf_titular?: string | null
           cnpj_fornecedor?: string
           comentario_financeiro?: string | null
           comentario_gestor?: string | null
+          conta_corrente?: string | null
           created_at?: string
           data_analise_financeira?: string | null
           data_aprovacao_gestor?: string | null
           data_emissao?: string
           data_envio?: string
           data_vencimento?: string
+          empresa_id?: string | null
+          forma_pagamento?: string | null
           id?: string
+          justificativa_divergencia_titular?: string | null
+          justificativa_vencimento_antecipado?: string | null
           nome_fornecedor?: string
           nome_solicitante?: string
+          nome_titular_conta?: string | null
           numero_nf?: string
           previsao_pagamento?: string | null
           produto_servico?: string
@@ -159,6 +213,13 @@ export type Database = {
             columns: ["centro_custo_id"]
             isOneToOne: false
             referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_nf_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {

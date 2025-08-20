@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { User } from '@supabase/supabase-js';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Upload, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { format, addDays, isBefore } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Setor {
   id: string;
@@ -23,21 +30,35 @@ interface CentroCusto {
 }
 
 interface InvoiceFormData {
-  setor_id: string;
-  nome_fornecedor: string;
-  cnpj_fornecedor: string;
-  numero_nf: string;
-  data_emissao: string;
-  data_vencimento: string;
-  produto_servico: string;
-  centro_custo_id: string;
-  valor_total: string;
-  arquivo_nf: FileList;
+  nomeCompleto: string;
+  nomeFornecedor: string;
+  cnpjFornecedor: string;
+  numeroNF: string;
+  dataEmissao: Date;
+  dataVencimento: Date;
+  valorTotal: string;
+  produtoServico: string;
+  setor: string;
+  centroCusto: string;
+  previsaoPagamento?: Date;
+  arquivoNF?: FileList;
+  justificativaVencimentoAntecipado?: string;
+  formaPagamento: 'deposito_bancario' | 'boleto';
+  arquivoBoleto?: FileList;
+  banco?: string;
+  agencia?: string;
+  contaCorrente?: string;
+  chavePix?: string;
+  cnpjCpfTitular?: string;
+  nomeTitularConta?: string;
+  justificativaDivergenciaTitular?: string;
 }
 
 interface InvoiceFormProps {
-  user: User;
+  user: any;
+  companyId: string;
   onSuccess: () => void;
+  onBack: () => void;
 }
 
 // CNPJ validation function
@@ -46,7 +67,7 @@ const validateCNPJ = (cnpj: string): boolean => {
   
   if (cleanCNPJ.length !== 14) return false;
   
-  // Validate check digits
+  // Basic validation (check digits)
   let sum = 0;
   let weight = 2;
   
@@ -80,398 +101,826 @@ const formatCNPJ = (value: string): string => {
     .replace(/(\d{4})(\d)/, '$1-$2');
 };
 
-export default function InvoiceForm({ user, onSuccess }: InvoiceFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+// Format currency input
+const formatCurrency = (value: string): string => {
+  const cleanValue = value.replace(/[^\d]/g, '');
+  const numberValue = parseInt(cleanValue) / 100;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numberValue || 0);
+};
+
+export default function InvoiceForm({ user, companyId, onSuccess, onBack }: InvoiceFormProps) {
+  const { toast } = useToast();
+  
+  const form = useForm<InvoiceFormData>({
+    resolver: zodResolver(z.object({
+      nomeCompleto: z.string().min(1, "Nome completo é obrigatório"),
+      nomeFornecedor: z.string().min(1, "Nome do fornecedor é obrigatório"),
+      cnpjFornecedor: z.string().min(14, "CNPJ deve ter 14 dígitos"),
+      numeroNF: z.string().min(1, "Número da NF é obrigatório"),
+      dataEmissao: z.date({ required_error: "Data de emissão é obrigatória" }),
+      dataVencimento: z.date({ required_error: "Data de vencimento é obrigatória" }),
+      valorTotal: z.string().min(1, "Valor total é obrigatório"),
+      produtoServico: z.string().min(1, "Produto/Serviço é obrigatório"),
+      setor: z.string().min(1, "Setor é obrigatório"),
+      centroCusto: z.string().min(1, "Centro de custo é obrigatório"),
+      previsaoPagamento: z.date().optional(),
+      arquivoNF: z.any().optional(),
+      justificativaVencimentoAntecipado: z.string().optional(),
+      formaPagamento: z.enum(['deposito_bancario', 'boleto'], {
+        required_error: "Forma de pagamento é obrigatória"
+      }),
+      arquivoBoleto: z.any().optional(),
+      banco: z.string().optional(),
+      agencia: z.string().optional(),
+      contaCorrente: z.string().optional(),
+      chavePix: z.string().optional(),
+      cnpjCpfTitular: z.string().optional(),
+      nomeTitularConta: z.string().optional(),
+      justificativaDivergenciaTitular: z.string().optional(),
+    })),
+    defaultValues: {
+      nomeCompleto: "",
+      nomeFornecedor: "",
+      cnpjFornecedor: "",
+      numeroNF: "",
+      valorTotal: "",
+      produtoServico: "",
+      setor: "",
+      centroCusto: "",
+      formaPagamento: 'deposito_bancario' as const,
+    },
+  });
+
   const [setores, setSetores] = useState<Setor[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Watch form values for conditional logic
+  const watchedVencimento = form.watch("dataVencimento");
+  const watchedFormaPagamento = form.watch("formaPagamento");
+  const watchedCnpjFornecedor = form.watch("cnpjFornecedor");
+  const watchedNomeFornecedor = form.watch("nomeFornecedor");
+  const watchedCnpjCpfTitular = form.watch("cnpjCpfTitular");
+  const watchedNomeTitular = form.watch("nomeTitularConta");
+  
+  // Check if due date requires justification (less than D+10)
+  const isEarlyDueDate = watchedVencimento ? isBefore(watchedVencimento, addDays(new Date(), 10)) : false;
+  
+  // Check if there's a titularity divergence
+  const hasTitularityDivergence = watchedFormaPagamento === 'deposito_bancario' && 
+    watchedCnpjFornecedor && watchedNomeFornecedor && 
+    watchedCnpjCpfTitular && watchedNomeTitular &&
+    (watchedCnpjFornecedor.replace(/\D/g, '') !== watchedCnpjCpfTitular.replace(/\D/g, '') ||
+     watchedNomeFornecedor.toLowerCase().trim() !== watchedNomeTitular.toLowerCase().trim());
 
-  const { register, handleSubmit, control, watch, formState: { errors }, setValue } = useForm<InvoiceFormData>();
-
-  // Watch CNPJ field for formatting
-  const cnpjValue = watch('cnpj_fornecedor');
-
-  // Format CNPJ on change
   useEffect(() => {
-    if (cnpjValue) {
-      const formatted = formatCNPJ(cnpjValue);
-      if (formatted !== cnpjValue) {
-        setValue('cnpj_fornecedor', formatted);
-      }
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Load sectors
+      const { data: setoresData, error: setoresError } = await supabase
+        .from('setores')
+        .select('*')
+        .order('nome');
+
+      if (setoresError) throw setoresError;
+      setSetores(setoresData || []);
+
+      // Load cost centers
+      const { data: centrosData, error: centrosError } = await supabase
+        .from('centros_custo')
+        .select('*')
+        .order('nome');
+
+      if (centrosError) throw centrosError;
+      setCentrosCusto(centrosData || []);
+
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados: " + error.message,
+        variant: "destructive",
+      });
     }
-  }, [cnpjValue, setValue]);
+  };
 
-  // Load user profile and form data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (profile) {
-          setUserProfile(profile);
-        }
-
-        // Load sectors
-        const { data: setoresData, error: setoresError } = await supabase
-          .from('setores')
-          .select('*')
-          .order('nome');
-
-        if (setoresError) throw setoresError;
-        setSetores(setoresData || []);
-
-        // Load cost centers
-        const { data: centrosData, error: centrosError } = await supabase
-          .from('centros_custo')
-          .select('*')
-          .order('nome');
-
-        if (centrosError) throw centrosError;
-        setCentrosCusto(centrosData || []);
-
-      } catch (error: any) {
-        toast.error('Erro ao carregar dados: ' + error.message);
-      }
-    };
-
-    loadData();
-  }, [user.id]);
-
-  const uploadFile = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File, bucket: string = 'invoices'): Promise<string | null> => {
     if (!file) return null;
 
-    setUploading(true);
+    setIsUploading(true);
     
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('invoices')
+        .from(bucket)
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data } = supabase.storage
-        .from('invoices')
+        .from(bucket)
         .getPublicUrl(fileName);
 
       return data.publicUrl;
     } catch (error: any) {
-      toast.error('Erro no upload: ' + error.message);
+      toast({
+        title: "Erro",
+        description: "Erro no upload: " + error.message,
+        variant: "destructive",
+      });
       return null;
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
   const onSubmit = async (data: InvoiceFormData) => {
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       // Validate CNPJ
-      if (!validateCNPJ(data.cnpj_fornecedor)) {
-        toast.error('CNPJ inválido');
-        setLoading(false);
+      if (!validateCNPJ(data.cnpjFornecedor)) {
+        toast({
+          title: "Erro",
+          description: "CNPJ inválido",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
         return;
       }
 
       // Upload invoice file
-      const file = data.arquivo_nf[0];
-      if (!file) {
-        toast.error('Arquivo da NF é obrigatório');
-        setLoading(false);
+      const invoiceFile = data.arquivoNF?.[0];
+      if (!invoiceFile) {
+        toast({
+          title: "Erro",
+          description: "Arquivo da NF é obrigatório",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
         return;
       }
 
-      if (file.type !== 'application/pdf') {
-        toast.error('O arquivo deve ser um PDF');
-        setLoading(false);
+      if (invoiceFile.type !== 'application/pdf') {
+        toast({
+          title: "Erro",
+          description: "O arquivo deve ser um PDF",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
         return;
       }
 
-      const fileUrl = await uploadFile(file);
-      if (!fileUrl) {
-        setLoading(false);
+      const invoiceFileUrl = await uploadFile(invoiceFile);
+      if (!invoiceFileUrl) {
+        setIsSubmitting(false);
         return;
+      }
+
+      // Upload boleto file if needed
+      let boletoFileUrl = null;
+      if (data.formaPagamento === 'boleto' && data.arquivoBoleto?.[0]) {
+        const boletoFile = data.arquivoBoleto[0];
+        if (boletoFile.type !== 'application/pdf') {
+          toast({
+            title: "Erro",
+            description: "O arquivo do boleto deve ser um PDF",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        boletoFileUrl = await uploadFile(boletoFile);
+        if (!boletoFileUrl) {
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Convert valor_total to number
-      const valorTotal = parseFloat(data.valor_total.replace(/[^\d,]/g, '').replace(',', '.'));
+      const valorTotal = parseFloat(data.valorTotal.replace(/[^\d,]/g, '').replace(',', '.'));
 
       // Create invoice request
       const { error } = await supabase
         .from('solicitacoes_nf')
         .insert({
           solicitante_id: user.id,
-          nome_solicitante: userProfile?.name || user.email || '',
-          setor_id: data.setor_id,
-          nome_fornecedor: data.nome_fornecedor,
-          cnpj_fornecedor: data.cnpj_fornecedor,
-          numero_nf: data.numero_nf,
-          data_emissao: data.data_emissao,
-          data_vencimento: data.data_vencimento,
-          produto_servico: data.produto_servico,
-          centro_custo_id: data.centro_custo_id,
+          empresa_id: companyId,
+          nome_solicitante: data.nomeCompleto,
+          setor_id: data.setor,
+          nome_fornecedor: data.nomeFornecedor,
+          cnpj_fornecedor: data.cnpjFornecedor,
+          numero_nf: data.numeroNF,
+          data_emissao: format(data.dataEmissao, 'yyyy-MM-dd'),
+          data_vencimento: format(data.dataVencimento, 'yyyy-MM-dd'),
+          produto_servico: data.produtoServico,
+          centro_custo_id: data.centroCusto,
           valor_total: valorTotal,
-          arquivo_nf_url: fileUrl,
+          arquivo_nf_url: invoiceFileUrl,
+          previsao_pagamento: data.previsaoPagamento ? format(data.previsaoPagamento, 'yyyy-MM-dd') : null,
+          justificativa_vencimento_antecipado: data.justificativaVencimentoAntecipado,
+          forma_pagamento: data.formaPagamento,
+          arquivo_boleto_url: boletoFileUrl,
+          banco: data.banco,
+          agencia: data.agencia,
+          conta_corrente: data.contaCorrente,
+          chave_pix: data.chavePix,
+          cnpj_cpf_titular: data.cnpjCpfTitular,
+          nome_titular_conta: data.nomeTitularConta,
+          justificativa_divergencia_titular: data.justificativaDivergenciaTitular,
         });
 
       if (error) throw error;
 
-      toast.success('Solicitação de pagamento enviada com sucesso!');
+      toast({
+        title: "Sucesso",
+        description: "Solicitação de pagamento enviada com sucesso!",
+      });
       onSuccess();
       
     } catch (error: any) {
-      toast.error('Erro ao enviar solicitação: ' + error.message);
+      toast({
+        title: "Erro",
+        description: "Erro ao enviar solicitação: " + error.message,
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Format currency input
-  const formatCurrency = (value: string): string => {
-    const cleanValue = value.replace(/[^\d]/g, '');
-    const numberValue = parseInt(cleanValue) / 100;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(numberValue || 0);
-  };
-
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Solicitação de Pagamento de Nota Fiscal</CardTitle>
-            <CardDescription>
-              Preencha todos os campos obrigatórios para enviar sua solicitação
-            </CardDescription>
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <CardTitle className="text-2xl font-bold text-gray-900">
+                  Solicitação de Pagamento de Nota Fiscal
+                </CardTitle>
+                <CardDescription>
+                  Preencha todos os campos obrigatórios para enviar sua solicitação
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nome do solicitante - Auto preenchido */}
-                <div className="space-y-2">
-                  <Label>Nome do Solicitante</Label>
-                  <Input 
-                    value={userProfile?.name || user.email || ''} 
-                    disabled 
-                    className="bg-muted"
-                  />
-                </div>
-
-                {/* Setor */}
-                <div className="space-y-2">
-                  <Label htmlFor="setor">Setor *</Label>
-                  <Controller
-                    name="setor_id"
-                    control={control}
-                    rules={{ required: 'Setor é obrigatório' }}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Nome do solicitante */}
+                  <FormField
+                    control={form.control}
+                    name="nomeCompleto"
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o setor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {setores.map((setor) => (
-                            <SelectItem key={setor.id} value={setor.id}>
-                              {setor.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <FormLabel>Nome Completo do Solicitante *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite seu nome completo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                  {errors.setor_id && (
-                    <p className="text-sm text-destructive">{errors.setor_id.message}</p>
-                  )}
-                </div>
 
-                {/* Nome do fornecedor */}
-                <div className="space-y-2">
-                  <Label htmlFor="nome_fornecedor">Nome do Fornecedor *</Label>
-                  <Input
-                    id="nome_fornecedor"
-                    {...register('nome_fornecedor', { required: 'Nome do fornecedor é obrigatório' })}
-                    placeholder="Digite o nome do fornecedor"
-                  />
-                  {errors.nome_fornecedor && (
-                    <p className="text-sm text-destructive">{errors.nome_fornecedor.message}</p>
-                  )}
-                </div>
-
-                {/* CNPJ */}
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj_fornecedor">CNPJ do Fornecedor *</Label>
-                  <Input
-                    id="cnpj_fornecedor"
-                    {...register('cnpj_fornecedor', { 
-                      required: 'CNPJ é obrigatório',
-                      validate: (value) => validateCNPJ(value) || 'CNPJ inválido'
-                    })}
-                    placeholder="00.000.000/0001-00"
-                    maxLength={18}
-                  />
-                  {errors.cnpj_fornecedor && (
-                    <p className="text-sm text-destructive">{errors.cnpj_fornecedor.message}</p>
-                  )}
-                </div>
-
-                {/* Número da NF */}
-                <div className="space-y-2">
-                  <Label htmlFor="numero_nf">Número da Nota Fiscal *</Label>
-                  <Input
-                    id="numero_nf"
-                    {...register('numero_nf', { required: 'Número da NF é obrigatório' })}
-                    placeholder="Digite o número da NF"
-                  />
-                  {errors.numero_nf && (
-                    <p className="text-sm text-destructive">{errors.numero_nf.message}</p>
-                  )}
-                </div>
-
-                {/* Data de emissão */}
-                <div className="space-y-2">
-                  <Label htmlFor="data_emissao">Data de Emissão *</Label>
-                  <Input
-                    id="data_emissao"
-                    type="date"
-                    {...register('data_emissao', { required: 'Data de emissão é obrigatória' })}
-                    max={format(new Date(), 'yyyy-MM-dd')}
-                  />
-                  {errors.data_emissao && (
-                    <p className="text-sm text-destructive">{errors.data_emissao.message}</p>
-                  )}
-                </div>
-
-                {/* Data de vencimento */}
-                <div className="space-y-2">
-                  <Label htmlFor="data_vencimento">Data de Vencimento *</Label>
-                  <Input
-                    id="data_vencimento"
-                    type="date"
-                    {...register('data_vencimento', { required: 'Data de vencimento é obrigatória' })}
-                  />
-                  {errors.data_vencimento && (
-                    <p className="text-sm text-destructive">{errors.data_vencimento.message}</p>
-                  )}
-                </div>
-
-                {/* Centro de custo */}
-                <div className="space-y-2">
-                  <Label htmlFor="centro_custo">Centro de Custo *</Label>
-                  <Controller
-                    name="centro_custo_id"
-                    control={control}
-                    rules={{ required: 'Centro de custo é obrigatório' }}
+                  {/* Setor */}
+                  <FormField
+                    control={form.control}
+                    name="setor"
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o centro de custo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {centrosCusto.map((centro) => (
-                            <SelectItem key={centro.id} value={centro.id}>
-                              {centro.codigo} - {centro.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <FormLabel>Setor *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o setor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {setores.map((setor) => (
+                              <SelectItem key={setor.id} value={setor.id}>
+                                {setor.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                  {errors.centro_custo_id && (
-                    <p className="text-sm text-destructive">{errors.centro_custo_id.message}</p>
-                  )}
+
+                  {/* Nome do fornecedor */}
+                  <FormField
+                    control={form.control}
+                    name="nomeFornecedor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Fornecedor *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o nome do fornecedor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* CNPJ */}
+                  <FormField
+                    control={form.control}
+                    name="cnpjFornecedor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CNPJ do Fornecedor *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="00.000.000/0001-00"
+                            maxLength={18}
+                            {...field}
+                            onChange={(e) => {
+                              const formatted = formatCNPJ(e.target.value);
+                              field.onChange(formatted);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Número da NF */}
+                  <FormField
+                    control={form.control}
+                    name="numeroNF"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número da Nota Fiscal *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o número da NF" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Data de emissão */}
+                  <FormField
+                    control={form.control}
+                    name="dataEmissao"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data de Emissão *</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                                ) : (
+                                  <span>Selecione a data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Data de vencimento */}
+                  <FormField
+                    control={form.control}
+                    name="dataVencimento"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data de Vencimento *</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                                ) : (
+                                  <span>Selecione a data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Centro de custo */}
+                  <FormField
+                    control={form.control}
+                    name="centroCusto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Centro de Custo *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o centro de custo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {centrosCusto.map((centro) => (
+                              <SelectItem key={centro.id} value={centro.id}>
+                                {centro.codigo} - {centro.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Valor total */}
+                  <FormField
+                    control={form.control}
+                    name="valorTotal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor Total (R$) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="R$ 0,00"
+                            {...field}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^\d]/g, '');
+                              const formattedValue = formatCurrency(rawValue);
+                              field.onChange(formattedValue);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                {/* Valor total */}
-                <div className="space-y-2">
-                  <Label htmlFor="valor_total">Valor Total (R$) *</Label>
-                  <Controller
-                    name="valor_total"
-                    control={control}
-                    rules={{ required: 'Valor total é obrigatório' }}
-                    render={({ field: { onChange, value } }) => (
-                      <Input
-                        value={value ? formatCurrency(value) : ''}
-                        onChange={(e) => {
-                          const rawValue = e.target.value.replace(/[^\d]/g, '');
-                          onChange(rawValue);
-                        }}
-                        placeholder="R$ 0,00"
+                {/* Justificativa para vencimento antecipado */}
+                {isEarlyDueDate && (
+                  <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        ⚠️ A data de vencimento é menor que 10 dias. Justificativa obrigatória.
+                      </AlertDescription>
+                    </Alert>
+                    <FormField
+                      control={form.control}
+                      name="justificativaVencimentoAntecipado"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Justificativa para Vencimento Antecipado *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Explique o motivo para o vencimento antecipado"
+                              rows={3}
+                              {...field}
+                            />
+                          </FormControl>
+                          <p className="text-sm text-amber-600">
+                            ⚠️ A submissão da justificativa não garante a aprovação do vencimento antecipado.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Forma de pagamento */}
+                <FormField
+                  control={form.control}
+                  name="formaPagamento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Forma de Pagamento *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a forma de pagamento" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="deposito_bancario">Depósito bancário</SelectItem>
+                          <SelectItem value="boleto">Boleto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Campos condicionais para Boleto */}
+                {watchedFormaPagamento === 'boleto' && (
+                  <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-semibold text-blue-900">Dados do Boleto</h3>
+                    <FormField
+                      control={form.control}
+                      name="arquivoBoleto"
+                      render={({ field: { onChange, ...field } }) => (
+                        <FormItem>
+                          <FormLabel>Upload do Boleto (PDF) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="file"
+                              accept=".pdf"
+                              onChange={(e) => onChange(e.target.files)}
+                              {...field}
+                              value=""
+                            />
+                          </FormControl>
+                          <p className="text-sm text-muted-foreground">
+                            Apenas arquivos PDF são aceitos
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Campos condicionais para Depósito bancário */}
+                {watchedFormaPagamento === 'deposito_bancario' && (
+                  <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h3 className="font-semibold text-green-900">Dados Bancários</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="banco"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Banco *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome do banco" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
+
+                      <FormField
+                        control={form.control}
+                        name="agencia"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Agência *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Número da agência" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="contaCorrente"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Conta Corrente *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Número da conta" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="chavePix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Chave Pix *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="CPF, CNPJ, email ou chave aleatória" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="cnpjCpfTitular"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CNPJ ou CPF do Titular da Conta *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="000.000.000-00 ou 00.000.000/0001-00" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="nomeTitularConta"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Titular da Conta *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome completo do titular" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Justificativa para divergência de titularidade */}
+                    {hasTitularityDivergence && (
+                      <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <Alert>
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            ⚠️ Os dados do titular da conta diferem dos dados do fornecedor da NF
+                          </AlertDescription>
+                        </Alert>
+                        <FormField
+                          control={form.control}
+                          name="justificativaDivergenciaTitular"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Justificativa da Divergência de Titularidade *</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Explique por que os dados do titular diferem dos dados da NF"
+                                  rows={3}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <p className="text-sm text-amber-600">
+                                ⚠️ Pagamentos devem ser feitos ao mesmo titular da nota fiscal. Caso haja divergência, é necessário justificar. A solicitação será analisada pelo financeiro.
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     )}
-                  />
-                  {errors.valor_total && (
-                    <p className="text-sm text-destructive">{errors.valor_total.message}</p>
+                  </div>
+                )}
+
+                {/* Produto/Serviço */}
+                <FormField
+                  control={form.control}
+                  name="produtoServico"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Produto ou Serviço Adquirido *</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Descreva detalhadamente o produto ou serviço adquirido"
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
-              </div>
-
-              {/* Produto/Serviço */}
-              <div className="space-y-2">
-                <Label htmlFor="produto_servico">Produto ou Serviço Adquirido *</Label>
-                <Textarea
-                  id="produto_servico"
-                  {...register('produto_servico', { required: 'Descrição do produto/serviço é obrigatória' })}
-                  placeholder="Descreva detalhadamente o produto ou serviço adquirido"
-                  rows={3}
                 />
-                {errors.produto_servico && (
-                  <p className="text-sm text-destructive">{errors.produto_servico.message}</p>
-                )}
-              </div>
 
-              {/* Upload da NF */}
-              <div className="space-y-2">
-                <Label htmlFor="arquivo_nf">Upload da Nota Fiscal (PDF) *</Label>
-                <Input
-                  id="arquivo_nf"
-                  type="file"
-                  accept=".pdf"
-                  {...register('arquivo_nf', { required: 'Upload da NF é obrigatório' })}
-                  className="cursor-pointer"
+                {/* Previsão de pagamento */}
+                <FormField
+                  control={form.control}
+                  name="previsaoPagamento"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Previsão de Pagamento (Opcional)</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                              ) : (
+                                <span>Selecione a data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.arquivo_nf && (
-                  <p className="text-sm text-destructive">{errors.arquivo_nf.message}</p>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  Apenas arquivos PDF são aceitos. Tamanho máximo: 10MB
-                </p>
-              </div>
 
-              {/* Status information */}
-              <div className="bg-muted p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Informações da Solicitação</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Status inicial:</span> Aguardando aprovação do gestor
-                  </div>
-                  <div>
-                    <span className="font-medium">Data de envio:</span> {format(new Date(), 'dd/MM/yyyy HH:mm')}
-                  </div>
+                {/* Upload da NF */}
+                <FormField
+                  control={form.control}
+                  name="arquivoNF"
+                  render={({ field: { onChange, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Upload da Nota Fiscal (PDF) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => onChange(e.target.files)}
+                          {...field}
+                          value=""
+                        />
+                      </FormControl>
+                      <p className="text-sm text-muted-foreground">
+                        Apenas arquivos PDF são aceitos. Tamanho máximo: 10MB
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Submit button */}
+                <div className="flex gap-4 pt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onBack}
+                    className="flex-1"
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || isUploading}
+                    className="flex-1"
+                  >
+                    {isSubmitting ? 'Enviando...' : isUploading ? 'Fazendo upload...' : 'Enviar Solicitação'}
+                  </Button>
                 </div>
-              </div>
-
-              <div className="flex gap-4">
-                <Button
-                  type="submit"
-                  disabled={loading || uploading}
-                  className="flex-1"
-                >
-                  {loading ? 'Enviando...' : uploading ? 'Fazendo upload...' : 'Enviar Solicitação'}
-                </Button>
-              </div>
-            </form>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>
