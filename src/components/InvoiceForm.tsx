@@ -156,6 +156,7 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
 
   const [setores, setSetores] = useState<Setor[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([]);
+  const [companyName, setCompanyName] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -183,6 +184,16 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
 
   const fetchData = async () => {
     try {
+      // Load company info
+      const { data: companyData, error: companyError } = await supabase
+        .from('empresas')
+        .select('nome')
+        .eq('id', companyId)
+        .single();
+
+      if (companyError) throw companyError;
+      setCompanyName(companyData?.nome || '');
+
       // Load sectors
       const { data: setoresData, error: setoresError } = await supabase
         .from('setores')
@@ -381,6 +392,22 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Empresa */}
+                  <FormItem>
+                    <FormLabel>Empresa *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        value={companyName} 
+                        readOnly 
+                        className="bg-gray-50 cursor-not-allowed"
+                        placeholder="Carregando empresa..." 
+                      />
+                    </FormControl>
+                    <p className="text-sm text-muted-foreground">
+                      Para alterar a empresa, volte para a página anterior
+                    </p>
+                  </FormItem>
+
                   {/* Nome do solicitante */}
                   <FormField
                     control={form.control}
@@ -459,7 +486,10 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                       </FormItem>
                     )}
                   />
+                </div>
 
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Número da NF */}
                   <FormField
                     control={form.control}
