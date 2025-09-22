@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Clock, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
+import { FileText, Clock, AlertCircle } from 'lucide-react';
 import InvoiceForm from '@/components/InvoiceForm';
 import CompanySelector from '@/components/CompanySelector';
 import AuthForm from '@/components/AuthForm';
@@ -70,7 +70,7 @@ export default function Index() {
         </div>
 
         {/* Main Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setCurrentView('company-select')}>
             <CardHeader className="text-center">
               <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -94,22 +94,10 @@ export default function Index() {
               </CardDescription>
             </CardHeader>
           </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="h-6 w-6 text-purple-600" />
-              </div>
-              <CardTitle className="text-xl">Status do Sistema</CardTitle>
-              <CardDescription>
-                Verificar disponibilidade e informações do sistema
-              </CardDescription>
-            </CardHeader>
-          </Card>
         </div>
 
         {/* Information Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="max-w-2xl">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -134,31 +122,6 @@ export default function Index() {
                 <div className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold">4</span>
                   <p>Aguarde aprovação do gestor e análise do financeiro</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-green-600" />
-                Empresas do Grupo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm text-gray-600">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <p>Hotéis Design</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <p>Restaurante Adamastor</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <p>Barroquinha Estacionamento</p>
                 </div>
               </div>
             </CardContent>
