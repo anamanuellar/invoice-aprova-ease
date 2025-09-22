@@ -486,6 +486,29 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                       </FormItem>
                     )}
                   />
+                  {/* Upload da NF */}
+                  <FormField
+                    control={form.control}
+                    name="arquivoNF"
+                    render={({ field: { onChange, ...field } }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Upload da Nota Fiscal (PDF) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="file"
+                            accept=".pdf"
+                            onChange={(e) => onChange(e.target.files)}
+                            {...field}
+                            value=""
+                          />
+                        </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          Apenas arquivos PDF são aceitos. Tamanho máximo: 10MB
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
 
@@ -902,30 +925,6 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                           />
                         </PopoverContent>
                       </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Upload da NF */}
-                <FormField
-                  control={form.control}
-                  name="arquivoNF"
-                  render={({ field: { onChange, ...field } }) => (
-                    <FormItem>
-                      <FormLabel>Upload da Nota Fiscal (PDF) *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="file"
-                          accept=".pdf"
-                          onChange={(e) => onChange(e.target.files)}
-                          {...field}
-                          value=""
-                        />
-                      </FormControl>
-                      <p className="text-sm text-muted-foreground">
-                        Apenas arquivos PDF são aceitos. Tamanho máximo: 10MB
-                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
