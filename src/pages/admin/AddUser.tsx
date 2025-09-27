@@ -171,7 +171,7 @@ export default function AddUser() {
                     <SelectValue placeholder="Selecione uma empresa específica" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as empresas</SelectItem>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
                     <SelectItem value="empresa-abc">Empresa ABC Ltda</SelectItem>
                     <SelectItem value="empresa-xyz">XYZ Corporação</SelectItem>
                   </SelectContent>
