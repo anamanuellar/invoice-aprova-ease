@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,35 +7,62 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, UserPlus, Search, Edit, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, UserPlus, Search, Edit, Trash2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useUsers } from "@/hooks/useUsers";
+import { useCompanies } from "@/hooks/useCompanies";
 
 export default function ManageUsers() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    roles: [] as string[],
+    empresaId: ""
+  });
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Mock data - replace with real data from Supabase
-  const users = [
-    {
-      id: "1",
-      name: "João Silva",
-      email: "joao@empresa.com",
-      roles: ["solicitante"],
-      company: "Empresa ABC",
-      status: "active",
-      createdAt: "2024-01-15"
-    },
-    {
-      id: "2", 
-      name: "Maria Santos",
-      email: "maria@empresa.com",
-      roles: ["gestor", "solicitante"],
-      company: "Empresa ABC",
-      status: "active",
-      createdAt: "2024-01-10"
+  const { users, loading, createUser } = useUsers();
+  const { companies } = useCompanies();
+
+  // Filter users based on search and role filter
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRole = filterRole === "all" || 
+                         user.roles.some(roleObj => roleObj.role === filterRole);
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchTerm, filterRole]);
+
+  const handleCreateUser = async () => {
+    if (!newUserData.name || !newUserData.email || !newUserData.password || newUserData.roles.length === 0) {
+      return;
     }
-  ];
+
+    setIsCreating(true);
+    const result = await createUser(newUserData);
+    setIsCreating(false);
+
+    if (result.success) {
+      setDialogOpen(false);
+      setNewUserData({
+        name: "",
+        email: "",
+        password: "",
+        roles: [],
+        empresaId: ""
+      });
+    }
+  };
 
   const getRoleBadgeColor = (role: string) => {
     const colors = {
@@ -61,41 +88,103 @@ export default function ManageUsers() {
               <p className="text-muted-foreground">Gerencie usuários e suas permissões no sistema</p>
             </div>
           </div>
-          <Dialog>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Novo Usuário
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Adicionar Novo Usuário</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Nome</Label>
-                  <Input id="name" placeholder="Nome completo" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Nome Completo</Label>
+                    <Input 
+                      id="name" 
+                      placeholder="Nome completo"
+                      value={newUserData.name}
+                      onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="email@exemplo.com"
+                      value={newUserData.email}
+                      onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="email@exemplo.com" />
+                  <Label htmlFor="password">Senha Temporária</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="Mínimo 8 caracteres"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData({...newUserData, password: e.target.value})}
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="role">Papel</Label>
-                  <Select>
+                  <Label>Papéis (selecione múltiplos)</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {["solicitante", "gestor", "financeiro", "admin"].map((role) => (
+                      <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newUserData.roles.includes(role)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewUserData({...newUserData, roles: [...newUserData.roles, role]});
+                            } else {
+                              setNewUserData({...newUserData, roles: newUserData.roles.filter(r => r !== role)});
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="capitalize">{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="empresa">Empresa (Opcional)</Label>
+                  <Select value={newUserData.empresaId} onValueChange={(value) => 
+                    setNewUserData({...newUserData, empresaId: value === "all" ? "" : value})
+                  }>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o papel" />
+                      <SelectValue placeholder="Selecione uma empresa" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="solicitante">Solicitante</SelectItem>
-                      <SelectItem value="gestor">Gestor</SelectItem>
-                      <SelectItem value="financeiro">Financeiro</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="all">Todas as empresas</SelectItem>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button className="w-full">Criar Usuário</Button>
+                <Button 
+                  className="w-full" 
+                  onClick={handleCreateUser}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    "Criar Usuário"
+                  )}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -135,56 +224,78 @@ export default function ManageUsers() {
         {/* Users Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Usuários do Sistema</CardTitle>
+            <CardTitle>
+              Usuários do Sistema
+              {!loading && <span className="text-sm font-normal text-muted-foreground ml-2">({filteredUsers.length} usuários)</span>}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Papéis</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data Criação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {user.roles.map((role) => (
-                          <Badge key={role} className={getRoleBadgeColor(role)}>
-                            {role}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.company}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                        {user.status === 'active' ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex space-x-4">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-[250px]" />
+                      <Skeleton className="h-4 w-[200px]" />
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchTerm || filterRole !== "all" ? 
+                  "Nenhum usuário encontrado com os filtros aplicados." :
+                  "Nenhum usuário cadastrado no sistema."
+                }
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Papéis</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data Criação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          {user.roles.length > 0 ? user.roles.map((roleObj, index) => (
+                            <Badge key={index} className={getRoleBadgeColor(roleObj.role)}>
+                              {roleObj.role}
+                            </Badge>
+                          )) : (
+                            <Badge variant="outline">Sem papel</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="default">Ativo</Badge>
+                      </TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="ghost" size="icon">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
