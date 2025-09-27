@@ -75,32 +75,29 @@ export const useUsers = () => {
     empresaId?: string;
   }) => {
     try {
-      // Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        user_metadata: {
-          name: userData.name
+      // Get the current session to pass the auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Call the Edge Function to create user
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: userData.email,
+          password: userData.password,
+          name: userData.name,
+          userRoles: userData.roles,
+          empresaId: userData.empresaId || null
         },
-        email_confirm: true
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (authError) throw authError;
-
-      if (!authData.user) throw new Error('Usuário não foi criado');
-
-      // Create user roles
-      const rolePromises = userData.roles.map(role => 
-        supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: role as any,
-            empresa_id: userData.empresaId || null
-          })
-      );
-
-      await Promise.all(rolePromises);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Usuário criado com sucesso",
