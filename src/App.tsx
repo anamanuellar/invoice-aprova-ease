@@ -10,6 +10,10 @@ import ManageUsers from "./pages/admin/ManageUsers";
 import ManageCompanies from "./pages/admin/ManageCompanies";
 import Reports from "./pages/admin/Reports";
 import SystemSettings from "./pages/admin/SystemSettings";
+import AddUser from "./pages/admin/AddUser";
+import ManagePermissions from "./pages/admin/ManagePermissions";
+import SystemBackup from "./pages/admin/SystemBackup";
+import NotificationSettings from "./pages/admin/NotificationSettings";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +30,10 @@ const App = () => (
             <Route path="/admin/companies" element={<ManageCompanies />} />
             <Route path="/admin/reports" element={<Reports />} />
             <Route path="/admin/settings" element={<SystemSettings />} />
+            <Route path="/admin/add-user" element={<AddUser />} />
+            <Route path="/admin/permissions" element={<ManagePermissions />} />
+            <Route path="/admin/backup" element={<SystemBackup />} />
+            <Route path="/admin/notifications" element={<NotificationSettings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

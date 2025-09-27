@@ -126,19 +126,19 @@ export const AdminDashboard = () => {
           <CardTitle>Ações Administrativas</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <Button className="justify-start" variant="outline">
+          <Button className="justify-start" variant="outline" onClick={() => navigate('/admin/add-user')}>
             <UserPlus className="h-4 w-4 mr-2" />
             Adicionar Novo Usuário
           </Button>
-          <Button className="justify-start" variant="outline">
+          <Button className="justify-start" variant="outline" onClick={() => navigate('/admin/permissions')}>
             <Shield className="h-4 w-4 mr-2" />
             Gerenciar Permissões
           </Button>
-          <Button className="justify-start" variant="outline">
+          <Button className="justify-start" variant="outline" onClick={() => navigate('/admin/backup')}>
             <Database className="h-4 w-4 mr-2" />
             Backup do Sistema
           </Button>
-          <Button className="justify-start" variant="outline">
+          <Button className="justify-start" variant="outline" onClick={() => navigate('/admin/notifications')}>
             <Bell className="h-4 w-4 mr-2" />
             Configurar Notificações
           </Button>
