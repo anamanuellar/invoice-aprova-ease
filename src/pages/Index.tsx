@@ -99,14 +99,7 @@ const Index = () => {
   const renderDashboard = () => {
     switch (primaryRole) {
       case 'admin':
-        return (
-          <AdminDashboard
-            onManageUsers={() => console.log('Gerenciar usuários')}
-            onManageCompanies={() => console.log('Gerenciar empresas')}
-            onViewReports={() => console.log('Ver relatórios')}
-            onSystemSettings={() => console.log('Configurações')}
-          />
-        );
+        return <AdminDashboard />;
       
       case 'financeiro':
         return (

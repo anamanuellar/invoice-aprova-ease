@@ -12,25 +12,15 @@ import {
   Bell,
   Activity
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface AdminDashboardProps {
-  onManageUsers: () => void;
-  onManageCompanies: () => void;
-  onViewReports: () => void;
-  onSystemSettings: () => void;
-}
-
-export const AdminDashboard = ({ 
-  onManageUsers, 
-  onManageCompanies, 
-  onViewReports, 
-  onSystemSettings 
-}: AdminDashboardProps) => {
+export const AdminDashboard = () => {
+  const navigate = useNavigate();
   return (
     <div className="space-y-6">
       {/* Navegação Principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-200 bg-purple-50" onClick={onManageUsers}>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-200 bg-purple-50" onClick={() => navigate('/admin/users')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-purple-800">
               <Users className="h-5 w-5" />
@@ -44,7 +34,7 @@ export const AdminDashboard = ({
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-blue-200 bg-blue-50" onClick={onManageCompanies}>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-blue-200 bg-blue-50" onClick={() => navigate('/admin/companies')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-800">
               <Building2 className="h-5 w-5" />
@@ -58,7 +48,7 @@ export const AdminDashboard = ({
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-green-200 bg-green-50" onClick={onViewReports}>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-green-200 bg-green-50" onClick={() => navigate('/admin/reports')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-800">
               <BarChart3 className="h-5 w-5" />
@@ -72,7 +62,7 @@ export const AdminDashboard = ({
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-gray-200 bg-gray-50" onClick={onSystemSettings}>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-gray-200 bg-gray-50" onClick={() => navigate('/admin/settings')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-gray-800">
               <Settings className="h-5 w-5" />
