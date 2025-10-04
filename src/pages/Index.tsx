@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AuthForm from "@/components/AuthForm";
 import InvoiceForm from "@/components/InvoiceForm";
 import CompanySelector from "@/components/CompanySelector";
+import { MyRequests } from "@/components/MyRequests";
 import { SolicitanteDashboard } from "@/components/dashboards/SolicitanteDashboard";
 import { GestorDashboard } from "@/components/dashboards/GestorDashboard";
 import { FinanceiroDashboard } from "@/components/dashboards/FinanceiroDashboard";
@@ -15,7 +16,7 @@ import { RoleBasedAccess } from "@/components/RoleBasedAccess";
 const Index = () => {
   const { user, loading, signOut } = useAuth();
   const { primaryRole, hasRole, loading: roleLoading } = useUserRole();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form' | 'my-requests'>('dashboard');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // Show loading state while checking authentication and roles
@@ -62,6 +63,11 @@ const Index = () => {
         onBack={handleBackToDashboard}
       />
     );
+  }
+
+  // Show my requests view
+  if (currentView === 'my-requests') {
+    return <MyRequests userId={user.id} onBack={handleBackToDashboard} />;
   }
 
   // Check if user has any role assigned
@@ -123,7 +129,7 @@ const Index = () => {
         return (
           <SolicitanteDashboard
             onNewRequest={() => setCurrentView('company-select')}
-            onViewRequests={() => console.log('Ver minhas solicitações')}
+            onViewRequests={() => setCurrentView('my-requests')}
           />
         );
     }
