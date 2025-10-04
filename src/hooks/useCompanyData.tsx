@@ -38,9 +38,9 @@ export const useCompanyData = () => {
       if (empresasError) throw empresasError;
 
       // Get user count per company
-      const { data: userCounts, error: userCountError } = await supabase
+      const { data: userRoles, error: userCountError } = await supabase
         .from('user_roles')
-        .select('empresa_id, count(*)')
+        .select('empresa_id')
         .not('empresa_id', 'is', null);
 
       if (userCountError) throw userCountError;
@@ -49,19 +49,31 @@ export const useCompanyData = () => {
       const currentMonth = new Date();
       const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       
-      const { data: requestCounts, error: requestCountError } = await supabase
+      const { data: requests, error: requestCountError } = await supabase
         .from('solicitacoes_nf')
-        .select('empresa_id, count(*)')
+        .select('empresa_id')
         .gte('created_at', firstDay.toISOString())
         .not('empresa_id', 'is', null);
 
       if (requestCountError) throw requestCountError;
 
+      // Count users per company
+      const userCountMap = userRoles?.reduce((acc, ur) => {
+        acc[ur.empresa_id] = (acc[ur.empresa_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Count requests per company
+      const requestCountMap = requests?.reduce((acc, req) => {
+        acc[req.empresa_id] = (acc[req.empresa_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
       // Combine data
       const companiesWithStats = empresas?.map(empresa => ({
         ...empresa,
-        usuariosAtivos: userCounts?.find(uc => uc.empresa_id === empresa.id)?.count || 0,
-        solicitacoesMes: requestCounts?.find(rc => rc.empresa_id === empresa.id)?.count || 0,
+        usuariosAtivos: userCountMap[empresa.id] || 0,
+        solicitacoesMes: requestCountMap[empresa.id] || 0,
       })) || [];
 
       setCompanies(companiesWithStats);
