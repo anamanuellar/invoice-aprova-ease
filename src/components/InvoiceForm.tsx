@@ -131,7 +131,7 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
       justificativaVencimentoAntecipado: z.string().optional(),
       formaPagamento: z.enum(['deposito_bancario', 'boleto'], {
         required_error: "Forma de pagamento é obrigatória"
-      }),
+      }).optional(),
       arquivoBoleto: z.any().optional(),
       banco: z.string().optional(),
       agencia: z.string().optional(),
@@ -150,7 +150,6 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
       produtoServico: "",
       setor: "",
       centroCusto: "",
-      formaPagamento: 'deposito_bancario' as const,
     },
   });
 
@@ -184,6 +183,20 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
 
   const fetchData = async () => {
     try {
+      // Load user profile to get name
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      
+      // Set the user name in the form
+      if (profileData?.name) {
+        form.setValue('nomeCompleto', profileData.name);
+      }
+
       // Load company info
       const { data: companyData, error: companyError } = await supabase
         .from('empresas')
@@ -416,8 +429,16 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                       <FormItem>
                         <FormLabel>Nome Completo do Solicitante *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Digite seu nome completo" {...field} />
+                          <Input 
+                            placeholder="Digite seu nome completo" 
+                            {...field}
+                            readOnly
+                            className="bg-gray-50 cursor-not-allowed"
+                          />
                         </FormControl>
+                        <p className="text-sm text-muted-foreground">
+                          Preenchido automaticamente com seu nome
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
