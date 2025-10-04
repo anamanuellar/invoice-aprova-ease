@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,9 +14,75 @@ import {
   Activity
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [usersCount, setUsersCount] = useState(0);
+  const [companiesCount, setCompaniesCount] = useState(0);
+  const [todayRequestsCount, setTodayRequestsCount] = useState(0);
+
+  // Fetch initial counts
+  const fetchCounts = async () => {
+    // Count users from profiles
+    const { count: profilesCount } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+    
+    if (profilesCount !== null) setUsersCount(profilesCount);
+
+    // Count companies
+    const { count: empresasCount } = await supabase
+      .from('empresas')
+      .select('*', { count: 'exact', head: true });
+    
+    if (empresasCount !== null) setCompaniesCount(empresasCount);
+
+    // Count today's requests
+    const today = new Date().toISOString().split('T')[0];
+    const { count: requestsCount } = await supabase
+      .from('solicitacoes_nf')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', today);
+    
+    if (requestsCount !== null) setTodayRequestsCount(requestsCount);
+  };
+
+  useEffect(() => {
+    fetchCounts();
+
+    // Set up real-time subscriptions
+    const profilesChannel = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => fetchCounts()
+      )
+      .subscribe();
+
+    const empresasChannel = supabase
+      .channel('empresas-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'empresas' },
+        () => fetchCounts()
+      )
+      .subscribe();
+
+    const solicitacoesChannel = supabase
+      .channel('solicitacoes-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_nf' },
+        () => fetchCounts()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(empresasChannel);
+      supabase.removeChannel(solicitacoesChannel);
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Navegação Principal */}
@@ -84,7 +151,7 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-center gap-2 mb-2">
               <Users className="h-5 w-5 text-purple-500" />
             </div>
-            <p className="text-2xl font-bold text-purple-700">0</p>
+            <p className="text-2xl font-bold text-purple-700">{usersCount}</p>
             <p className="text-xs text-muted-foreground">Usuários Ativos</p>
           </CardContent>
         </Card>
@@ -94,7 +161,7 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-center gap-2 mb-2">
               <FileText className="h-5 w-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-blue-700">0</p>
+            <p className="text-2xl font-bold text-blue-700">{todayRequestsCount}</p>
             <p className="text-xs text-muted-foreground">Solicitações Hoje</p>
           </CardContent>
         </Card>
@@ -104,7 +171,7 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-center gap-2 mb-2">
               <Building2 className="h-5 w-5 text-green-500" />
             </div>
-            <p className="text-2xl font-bold text-green-700">0</p>
+            <p className="text-2xl font-bold text-green-700">{companiesCount}</p>
             <p className="text-xs text-muted-foreground">Empresas Cadastradas</p>
           </CardContent>
         </Card>
