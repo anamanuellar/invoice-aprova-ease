@@ -106,17 +106,17 @@ serve(async (req) => {
       })
     }
 
-    // Create a profile entry so the user appears in the listings
+    // Create or update profile entry idempotently so user appears in listings
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
+      .upsert({
         user_id: newUser.user.id,
         email: newUser.user.email,
         name: name
-      })
+      }, { onConflict: 'user_id', ignoreDuplicates: false })
 
     if (profileError) {
-      // Cleanup if profile creation fails
+      // Cleanup if profile upsert fails for unexpected reasons
       await supabaseAdmin.from('user_roles').delete().eq('user_id', newUser.user.id)
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
       return new Response(JSON.stringify({ error: profileError.message }), { 
