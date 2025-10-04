@@ -24,18 +24,19 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/admin/users" element={<ManageUsers />} />
-            <Route path="/admin/companies" element={<ManageCompanies />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/settings" element={<SystemSettings />} />
-            <Route path="/admin/add-user" element={<AddUser />} />
-            <Route path="/admin/permissions" element={<ManagePermissions />} />
-            <Route path="/admin/backup" element={<SystemBackup />} />
-            <Route path="/admin/notifications" element={<NotificationSettings />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/manage-users" element={<ManageUsers />} />
+              <Route path="/admin/companies" element={<ManageCompanies />} />
+              <Route path="/admin/reports" element={<Reports />} />
+              <Route path="/admin/settings" element={<SystemSettings />} />
+              <Route path="/admin/add-user" element={<AddUser />} />
+              <Route path="/admin/permissions" element={<ManagePermissions />} />
+              <Route path="/admin/backup" element={<SystemBackup />} />
+              <Route path="/admin/notifications" element={<NotificationSettings />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

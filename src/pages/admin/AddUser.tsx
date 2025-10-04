@@ -69,7 +69,7 @@ export default function AddUser() {
       setIsSubmitting(true);
       console.log("Creating user:", formData);
       
-      await createUser({
+      const result = await createUser({
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -77,12 +77,20 @@ export default function AddUser() {
         empresaId: formData.empresaId === "all" || formData.empresaId === "" ? null : formData.empresaId,
       });
 
-      toast({
-        title: "Sucesso!",
-        description: "Usuário criado com sucesso!",
-      });
-      
-      navigate("/admin/manage-users");
+      if (result?.success) {
+        toast({
+          title: "Sucesso!",
+          description: "Usuário criado com sucesso!",
+        });
+        navigate("/admin/users");
+      } else {
+        toast({
+          title: "Erro ao criar usuário",
+          description: result?.error || "Não foi possível criar o usuário. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
     } catch (error) {
       console.error("Error creating user:", error);
       toast({
@@ -255,7 +263,7 @@ export default function AddUser() {
 
           {/* Actions */}
           <div className="flex gap-4 justify-end">
-            <Button type="button" variant="outline" onClick={() => navigate("/admin/manage-users")} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => navigate("/admin/users")} disabled={isSubmitting}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting || usersLoading}>

@@ -106,6 +106,25 @@ serve(async (req) => {
       })
     }
 
+    // Create a profile entry so the user appears in the listings
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        user_id: newUser.user.id,
+        email: newUser.user.email,
+        name: name
+      })
+
+    if (profileError) {
+      // Cleanup if profile creation fails
+      await supabaseAdmin.from('user_roles').delete().eq('user_id', newUser.user.id)
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+      return new Response(JSON.stringify({ error: profileError.message }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       user: { 
