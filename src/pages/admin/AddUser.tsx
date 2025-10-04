@@ -5,12 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, UserPlus, Save, Mail } from "lucide-react";
+import { ArrowLeft, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useUsers } from "@/hooks/useUsers";
+import { useCompanies } from "@/hooks/useCompanies";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AddUser() {
   const navigate = useNavigate();
+  const { createUser, loading: usersLoading } = useUsers();
+  const { companies, loading: companiesLoading } = useCompanies();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "", 
@@ -41,19 +48,51 @@ export default function AddUser() {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      alert("Senhas não coincidem!");
+      toast({
+        title: "Erro",
+        description: "As senhas não coincidem!",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.roles.length === 0) {
-      alert("Selecione pelo menos um papel para o usuário!");
+      toast({
+        title: "Erro",
+        description: "Selecione pelo menos um papel para o usuário!",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Here would be the actual user creation logic with Supabase
-    console.log("Creating user:", formData);
-    alert("Usuário criado com sucesso!");
-    navigate("/");
+    try {
+      setIsSubmitting(true);
+      console.log("Creating user:", formData);
+      
+      await createUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        roles: formData.roles,
+        empresaId: formData.empresaId || null,
+      });
+
+      toast({
+        title: "Sucesso!",
+        description: "Usuário criado com sucesso!",
+      });
+      
+      navigate("/admin/manage-users");
+    } catch (error) {
+      console.error("Error creating user:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o usuário. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -164,16 +203,21 @@ export default function AddUser() {
             <CardContent>
               <div>
                 <Label htmlFor="company">Empresa (Opcional)</Label>
-                <Select value={formData.empresaId} onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, empresaId: value }))
-                }>
+                <Select 
+                  value={formData.empresaId} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, empresaId: value }))}
+                  disabled={companiesLoading}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma empresa específica" />
+                    <SelectValue placeholder={companiesLoading ? "Carregando empresas..." : "Selecione uma empresa específica"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas as empresas</SelectItem>
-                    <SelectItem value="empresa-abc">Empresa ABC Ltda</SelectItem>
-                    <SelectItem value="empresa-xyz">XYZ Corporação</SelectItem>
+                    <SelectItem value="">Todas as empresas</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -211,12 +255,12 @@ export default function AddUser() {
 
           {/* Actions */}
           <div className="flex gap-4 justify-end">
-            <Button type="button" variant="outline" onClick={() => navigate("/")}>
+            <Button type="button" variant="outline" onClick={() => navigate("/admin/manage-users")} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={isSubmitting || usersLoading}>
               <UserPlus className="h-4 w-4 mr-2" />
-              Criar Usuário
+              {isSubmitting ? "Criando..." : "Criar Usuário"}
             </Button>
           </div>
         </form>
