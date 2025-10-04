@@ -74,7 +74,7 @@ export default function AddUser() {
         email: formData.email,
         password: formData.password,
         roles: formData.roles,
-        empresaId: formData.empresaId || null,
+        empresaId: formData.empresaId === "all" || formData.empresaId === "" ? null : formData.empresaId,
       });
 
       toast({
@@ -211,8 +211,8 @@ export default function AddUser() {
                   <SelectTrigger>
                     <SelectValue placeholder={companiesLoading ? "Carregando empresas..." : "Selecione uma empresa específica"} />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Todas as empresas</SelectItem>
+                  <SelectContent className="z-50 bg-popover">
+                    <SelectItem value="all">Todas as empresas</SelectItem>
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.nome}
@@ -221,7 +221,7 @@ export default function AddUser() {
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Deixe vazio para acesso a todas as empresas
+                  Selecione "Todas as empresas" para acesso global
                 </p>
               </div>
             </CardContent>
