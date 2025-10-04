@@ -158,6 +158,8 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
   const [companyName, setCompanyName] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedNFFile, setSelectedNFFile] = useState<string>('');
+  const [selectedBoletoFile, setSelectedBoletoFile] = useState<string>('');
   
   // Watch form values for conditional logic
   const watchedVencimento = form.watch("dataVencimento");
@@ -511,18 +513,29 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                   <FormField
                     control={form.control}
                     name="arquivoNF"
-                    render={({ field: { onChange, ...field } }) => (
+                    render={({ field: { onChange, value, ...field } }) => (
                       <FormItem className="md:col-span-2">
                         <FormLabel>Upload da Nota Fiscal (PDF) *</FormLabel>
                         <FormControl>
                           <Input
                             type="file"
                             accept=".pdf"
-                            onChange={(e) => onChange(e.target.files)}
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (files && files.length > 0) {
+                                setSelectedNFFile(files[0].name);
+                                onChange(files);
+                              }
+                            }}
                             {...field}
-                            value=""
                           />
                         </FormControl>
+                        {selectedNFFile && (
+                          <p className="text-sm text-green-600 flex items-center gap-2">
+                            <Upload className="h-4 w-4" />
+                            Arquivo selecionado: {selectedNFFile}
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground">
                           Apenas arquivos PDF são aceitos. Tamanho máximo: 10MB
                         </p>
@@ -745,18 +758,29 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                     <FormField
                       control={form.control}
                       name="arquivoBoleto"
-                      render={({ field: { onChange, ...field } }) => (
+                      render={({ field: { onChange, value, ...field } }) => (
                         <FormItem>
                           <FormLabel>Upload do Boleto (PDF) *</FormLabel>
                           <FormControl>
                             <Input
                               type="file"
                               accept=".pdf"
-                              onChange={(e) => onChange(e.target.files)}
+                              onChange={(e) => {
+                                const files = e.target.files;
+                                if (files && files.length > 0) {
+                                  setSelectedBoletoFile(files[0].name);
+                                  onChange(files);
+                                }
+                              }}
                               {...field}
-                              value=""
                             />
                           </FormControl>
+                          {selectedBoletoFile && (
+                            <p className="text-sm text-green-600 flex items-center gap-2">
+                              <Upload className="h-4 w-4" />
+                              Arquivo selecionado: {selectedBoletoFile}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             Apenas arquivos PDF são aceitos
                           </p>
