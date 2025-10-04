@@ -722,7 +722,7 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Forma de Pagamento *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a forma de pagamento" />
