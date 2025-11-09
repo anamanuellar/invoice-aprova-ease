@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, XCircle, Clock, FileText, Building2, Calendar, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CheckCircle, XCircle, Clock, FileText, Building2, Calendar, DollarSign, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Solicitacao {
@@ -24,24 +26,52 @@ interface Solicitacao {
   comentario_gestor?: string;
   comentario_financeiro?: string;
   created_at: string;
+  nome_titular_conta?: string;
+  banco?: string;
+  agencia?: string;
+  conta_corrente?: string;
+  chave_pix?: string;
+  cnpj_cpf_titular?: string;
+  justificativa_vencimento_antecipado?: string;
+  justificativa_divergencia_titular?: string;
+  arquivo_nf_url?: string;
+  arquivo_boleto_url?: string;
 }
 
 export const RequestManagement = () => {
   const { user } = useAuth();
+  const { primaryRole } = useUserRole();
   const { toast } = useToast();
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<Solicitacao | null>(null);
   const [comentario, setComentario] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchSolicitacoes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('solicitacoes_nf')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      // Gestores veem apenas solicitações do seu centro de custo
+      if (primaryRole === 'gestor') {
+        // Buscar o centro de custo do gestor
+        const { data: userRoleData } = await supabase
+          .from('user_roles')
+          .select('empresa_id')
+          .eq('user_id', user?.id)
+          .eq('role', 'gestor')
+          .single();
+
+        if (userRoleData?.empresa_id) {
+          query = query.eq('empresa_id', userRoleData.empresa_id);
+        }
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setSolicitacoes(data || []);
@@ -117,19 +147,28 @@ export const RequestManagement = () => {
 
     setActionLoading(true);
     try {
+      // Determinar o campo de comentário correto baseado no role
+      const updateData: any = {
+        status: 'Rejeitada pelo gestor',
+      };
+
+      if (primaryRole === 'gestor') {
+        updateData.comentario_gestor = comentario;
+      } else if (primaryRole === 'financeiro' || primaryRole === 'admin') {
+        updateData.comentario_financeiro = comentario;
+        updateData.status = 'Rejeitada pelo financeiro';
+      }
+
       const { error } = await supabase
         .from('solicitacoes_nf')
-        .update({
-          status: 'Rejeitada',
-          comentario_gestor: comentario,
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
 
       toast({
         title: 'Sucesso',
-        description: 'Solicitação rejeitada.',
+        description: 'Solicitação rejeitada e devolvida ao solicitante.',
       });
       setSelectedRequest(null);
       setComentario('');
@@ -256,7 +295,19 @@ export const RequestManagement = () => {
                   </div>
                 )}
 
-                {solicitacao.status === 'Aguardando aprovação do gestor' && (
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    onClick={() => setViewingRequest(solicitacao)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver Detalhes Completos
+                  </Button>
+                </div>
+
+                {(solicitacao.status === 'Aguardando aprovação do gestor' || 
+                  solicitacao.status === 'Em análise financeira') && (
                   <div className="mt-4 space-y-3">
                     {selectedRequest === solicitacao.id && (
                       <div className="space-y-2">
@@ -319,6 +370,178 @@ export const RequestManagement = () => {
           ))
         )}
       </div>
+
+      {/* Modal de Visualização Completa */}
+      <Dialog open={!!viewingRequest} onOpenChange={() => setViewingRequest(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Detalhes da Solicitação - NF {viewingRequest?.numero_nf}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingRequest && (
+            <div className="space-y-6">
+              {/* Status */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <span className="font-medium">Status:</span>
+                {getStatusBadge(viewingRequest.status)}
+              </div>
+
+              {/* Informações do Solicitante */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2">Informações do Solicitante</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Nome:</span>
+                    <p className="font-medium">{viewingRequest.nome_solicitante}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Data de Envio:</span>
+                    <p className="font-medium">{format(new Date(viewingRequest.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informações do Fornecedor */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2">Informações do Fornecedor</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Nome:</span>
+                    <p className="font-medium">{viewingRequest.nome_fornecedor}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">CNPJ:</span>
+                    <p className="font-medium">{viewingRequest.cnpj_fornecedor}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informações da Nota Fiscal */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2">Informações da Nota Fiscal</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Número NF:</span>
+                    <p className="font-medium">{viewingRequest.numero_nf}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Produto/Serviço:</span>
+                    <p className="font-medium">{viewingRequest.produto_servico}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Data de Emissão:</span>
+                    <p className="font-medium">{format(new Date(viewingRequest.data_emissao), 'dd/MM/yyyy')}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Data de Vencimento:</span>
+                    <p className="font-medium">{format(new Date(viewingRequest.data_vencimento), 'dd/MM/yyyy')}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-sm text-muted-foreground">Valor Total:</span>
+                    <p className="text-2xl font-bold text-primary">R$ {Number(viewingRequest.valor_total).toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informações Bancárias */}
+              {viewingRequest.nome_titular_conta && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Informações Bancárias</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Titular:</span>
+                      <p className="font-medium">{viewingRequest.nome_titular_conta}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">CPF/CNPJ:</span>
+                      <p className="font-medium">{viewingRequest.cnpj_cpf_titular}</p>
+                    </div>
+                    {viewingRequest.banco && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Banco:</span>
+                        <p className="font-medium">{viewingRequest.banco}</p>
+                      </div>
+                    )}
+                    {viewingRequest.agencia && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Agência:</span>
+                        <p className="font-medium">{viewingRequest.agencia}</p>
+                      </div>
+                    )}
+                    {viewingRequest.conta_corrente && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Conta:</span>
+                        <p className="font-medium">{viewingRequest.conta_corrente}</p>
+                      </div>
+                    )}
+                    {viewingRequest.chave_pix && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Chave PIX:</span>
+                        <p className="font-medium">{viewingRequest.chave_pix}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Justificativas */}
+              {viewingRequest.justificativa_vencimento_antecipado && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-2">Justificativa - Vencimento Antecipado</h3>
+                  <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.justificativa_vencimento_antecipado}</p>
+                </div>
+              )}
+
+              {viewingRequest.justificativa_divergencia_titular && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-2">Justificativa - Divergência de Titular</h3>
+                  <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.justificativa_divergencia_titular}</p>
+                </div>
+              )}
+
+              {/* Comentários */}
+              {viewingRequest.comentario_gestor && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-2">Comentário do Gestor</h3>
+                  <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.comentario_gestor}</p>
+                </div>
+              )}
+
+              {viewingRequest.comentario_financeiro && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-2">Comentário do Financeiro</h3>
+                  <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.comentario_financeiro}</p>
+                </div>
+              )}
+
+              {/* Arquivos */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2">Arquivos Anexados</h3>
+                <div className="flex gap-2">
+                  {viewingRequest.arquivo_nf_url && (
+                    <Button variant="outline" asChild>
+                      <a href={viewingRequest.arquivo_nf_url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Ver Nota Fiscal
+                      </a>
+                    </Button>
+                  )}
+                  {viewingRequest.arquivo_boleto_url && (
+                    <Button variant="outline" asChild>
+                      <a href={viewingRequest.arquivo_boleto_url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Ver Boleto
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

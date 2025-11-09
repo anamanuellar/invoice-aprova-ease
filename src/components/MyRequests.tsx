@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,19 @@ interface Request {
   empresa_id: string;
   produto_servico: string;
   forma_pagamento: string | null;
+  nome_titular_conta?: string;
+  banco?: string;
+  agencia?: string;
+  conta_corrente?: string;
+  chave_pix?: string;
+  cnpj_cpf_titular?: string;
+  justificativa_vencimento_antecipado?: string;
+  justificativa_divergencia_titular?: string;
+  arquivo_nf_url?: string;
+  arquivo_boleto_url?: string;
+  comentario_gestor?: string;
+  comentario_financeiro?: string;
+  created_at: string;
 }
 
 interface Company {
@@ -77,6 +91,7 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
   const [companies, setCompanies] = useState<Record<string, Company>>({});
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<Request | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -332,12 +347,13 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
                               {config.label}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                           <TableCell>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setSelectedRequest(request)}
+                              onClick={() => setViewingRequest(request)}
                             >
+                              <Eye className="h-4 w-4 mr-2" />
                               Ver detalhes
                             </Button>
                           </TableCell>
@@ -350,6 +366,182 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
             </CardContent>
           </Card>
         )}
+
+        {/* Modal de Visualização Completa */}
+        <Dialog open={!!viewingRequest} onOpenChange={() => setViewingRequest(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Detalhes da Solicitação - NF {viewingRequest?.numero_nf}
+              </DialogTitle>
+            </DialogHeader>
+            {viewingRequest && (
+              <div className="space-y-6">
+                {/* Status */}
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <span className="font-medium">Status:</span>
+                  <Badge variant={getStatusConfig(viewingRequest.status).variant}>
+                    {getStatusConfig(viewingRequest.status).label}
+                  </Badge>
+                </div>
+
+                {/* Informações da Empresa */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Informações da Empresa</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Empresa:</span>
+                      <p className="font-medium">{companies[viewingRequest.empresa_id]?.nome || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Data de Envio:</span>
+                      <p className="font-medium">{format(new Date(viewingRequest.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informações do Fornecedor */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Informações do Fornecedor</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Nome:</span>
+                      <p className="font-medium">{viewingRequest.nome_fornecedor}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">CNPJ:</span>
+                      <p className="font-medium">{viewingRequest.cnpj_fornecedor}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informações da Nota Fiscal */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Informações da Nota Fiscal</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Número NF:</span>
+                      <p className="font-medium">{viewingRequest.numero_nf}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Produto/Serviço:</span>
+                      <p className="font-medium">{viewingRequest.produto_servico}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Data de Emissão:</span>
+                      <p className="font-medium">{formatDate(viewingRequest.data_emissao)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Data de Vencimento:</span>
+                      <p className="font-medium">{formatDate(viewingRequest.data_vencimento)}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-sm text-muted-foreground">Valor Total:</span>
+                      <p className="text-2xl font-bold text-primary">{formatCurrency(Number(viewingRequest.valor_total))}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informações Bancárias */}
+                {viewingRequest.nome_titular_conta && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-lg border-b pb-2">Informações Bancárias</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-sm text-muted-foreground">Titular:</span>
+                        <p className="font-medium">{viewingRequest.nome_titular_conta}</p>
+                      </div>
+                      {viewingRequest.cnpj_cpf_titular && (
+                        <div>
+                          <span className="text-sm text-muted-foreground">CPF/CNPJ:</span>
+                          <p className="font-medium">{viewingRequest.cnpj_cpf_titular}</p>
+                        </div>
+                      )}
+                      {viewingRequest.banco && (
+                        <div>
+                          <span className="text-sm text-muted-foreground">Banco:</span>
+                          <p className="font-medium">{viewingRequest.banco}</p>
+                        </div>
+                      )}
+                      {viewingRequest.agencia && (
+                        <div>
+                          <span className="text-sm text-muted-foreground">Agência:</span>
+                          <p className="font-medium">{viewingRequest.agencia}</p>
+                        </div>
+                      )}
+                      {viewingRequest.conta_corrente && (
+                        <div>
+                          <span className="text-sm text-muted-foreground">Conta:</span>
+                          <p className="font-medium">{viewingRequest.conta_corrente}</p>
+                        </div>
+                      )}
+                      {viewingRequest.chave_pix && (
+                        <div>
+                          <span className="text-sm text-muted-foreground">Chave PIX:</span>
+                          <p className="font-medium">{viewingRequest.chave_pix}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Justificativas */}
+                {viewingRequest.justificativa_vencimento_antecipado && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg border-b pb-2">Justificativa - Vencimento Antecipado</h3>
+                    <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.justificativa_vencimento_antecipado}</p>
+                  </div>
+                )}
+
+                {viewingRequest.justificativa_divergencia_titular && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg border-b pb-2">Justificativa - Divergência de Titular</h3>
+                    <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.justificativa_divergencia_titular}</p>
+                  </div>
+                )}
+
+                {/* Comentários */}
+                {viewingRequest.comentario_gestor && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg border-b pb-2">Comentário do Gestor</h3>
+                    <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.comentario_gestor}</p>
+                  </div>
+                )}
+
+                {viewingRequest.comentario_financeiro && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg border-b pb-2">Comentário do Financeiro</h3>
+                    <p className="text-sm p-3 bg-muted/50 rounded">{viewingRequest.comentario_financeiro}</p>
+                  </div>
+                )}
+
+                {/* Arquivos */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2">Arquivos Anexados</h3>
+                  <div className="flex gap-2">
+                    {viewingRequest.arquivo_nf_url && (
+                      <Button variant="outline" asChild>
+                        <a href={viewingRequest.arquivo_nf_url} target="_blank" rel="noopener noreferrer">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Ver Nota Fiscal
+                        </a>
+                      </Button>
+                    )}
+                    {viewingRequest.arquivo_boleto_url && (
+                      <Button variant="outline" asChild>
+                        <a href={viewingRequest.arquivo_boleto_url} target="_blank" rel="noopener noreferrer">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Ver Boleto
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

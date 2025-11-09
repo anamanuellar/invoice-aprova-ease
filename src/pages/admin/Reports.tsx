@@ -1,66 +1,98 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, BarChart3, TrendingUp, FileText, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Reports() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState("last30days");
   const [selectedCompany, setSelectedCompany] = useState("all");
+  const [reportData, setReportData] = useState({
+    totalSolicitacoes: 0,
+    aprovadas: 0,
+    rejeitadas: 0,
+    pendentes: 0,
+    valorTotal: "R$ 0,00",
+    tempoMedioAprovacao: "0 dias"
+  });
+  const [recentRequests, setRecentRequests] = useState<any[]>([]);
 
-  // Mock data - replace with real data from Supabase
-  const reportData = {
-    totalSolicitacoes: 156,
-    aprovadas: 89,
-    rejeitadas: 12,
-    pendentes: 55,
-    valorTotal: "R$ 45.670,89",
-    tempoMedioAprovacao: "2.5 dias"
+  const fetchReportData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitacoes_nf')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Calcular estatísticas
+      const total = data?.length || 0;
+      const aprovadas = data?.filter(s => s.status === 'Aprovada').length || 0;
+      const rejeitadas = data?.filter(s => 
+        s.status === 'Rejeitada pelo gestor' || s.status === 'Rejeitada pelo financeiro'
+      ).length || 0;
+      const pendentes = data?.filter(s => 
+        s.status === 'Aguardando aprovação do gestor' || s.status === 'Em análise financeira'
+      ).length || 0;
+      
+      const valorTotal = data?.reduce((acc, s) => acc + Number(s.valor_total || 0), 0) || 0;
+
+      setReportData({
+        totalSolicitacoes: total,
+        aprovadas,
+        rejeitadas,
+        pendentes,
+        valorTotal: `R$ ${valorTotal.toFixed(2)}`,
+        tempoMedioAprovacao: "2.5 dias" // Calcular baseado em datas reais
+      });
+
+      // Pegar últimas 10 solicitações
+      setRecentRequests(data?.slice(0, 10).map(s => ({
+        id: s.numero_nf,
+        fornecedor: s.nome_fornecedor,
+        valor: `R$ ${Number(s.valor_total).toFixed(2)}`,
+        status: s.status,
+        data: s.created_at
+      })) || []);
+    } catch (error) {
+      console.error('Erro ao buscar dados do relatório:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados do relatório.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const topSectors = [
-    { name: "Tecnologia", count: 45, percentage: 28.8 },
-    { name: "Marketing", count: 32, percentage: 20.5 },
-    { name: "Recursos Humanos", count: 28, percentage: 17.9 },
-    { name: "Operações", count: 25, percentage: 16.0 },
-    { name: "Financeiro", count: 26, percentage: 16.7 }
-  ];
+  useEffect(() => {
+    fetchReportData();
 
-  const recentRequests = [
-    {
-      id: "001",
-      fornecedor: "Tech Solutions Ltda",
-      valor: "R$ 2.500,00",
-      status: "Aprovada",
-      data: "2024-01-20"
-    },
-    {
-      id: "002", 
-      fornecedor: "Marketing Digital Corp",
-      valor: "R$ 1.200,00",
-      status: "Pendente",
-      data: "2024-01-19"
-    },
-    {
-      id: "003",
-      fornecedor: "Consultoria Empresarial",
-      valor: "R$ 3.800,00", 
-      status: "Rejeitada",
-      data: "2024-01-18"
-    }
-  ];
+    // Configurar realtime updates
+    const channel = supabase
+      .channel('reports-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'solicitacoes_nf' },
+        () => fetchReportData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedPeriod, selectedCompany]);
 
   const getStatusColor = (status: string) => {
-    const colors = {
-      "Aprovada": "bg-green-100 text-green-800",
-      "Pendente": "bg-yellow-100 text-yellow-800",
-      "Rejeitada": "bg-red-100 text-red-800"
-    };
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800";
+    if (status === 'Aprovada') return "bg-green-100 text-green-800";
+    if (status.includes('Rejeitada')) return "bg-red-100 text-red-800";
+    if (status.includes('Aguardando') || status.includes('análise')) return "bg-yellow-100 text-yellow-800";
+    return "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -179,34 +211,8 @@ export default function Reports() {
 
         {/* Charts and Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Sectors */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Setores com Mais Solicitações</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {topSectors.map((sector) => (
-                  <div key={sector.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-3 h-3 rounded-full bg-blue-500" 
-                        style={{ backgroundColor: `hsl(${sector.percentage * 3.6}, 70%, 50%)` }}
-                      />
-                      <span className="font-medium">{sector.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{sector.count}</Badge>
-                      <span className="text-sm text-muted-foreground">{sector.percentage}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Recent Requests */}
-          <Card>
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Solicitações Recentes</CardTitle>
             </CardHeader>
