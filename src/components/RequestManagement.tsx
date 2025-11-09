@@ -106,13 +106,27 @@ export const RequestManagement = () => {
   const handleApprove = async (id: string) => {
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('solicitacoes_nf')
-        .update({
+      let updateData: any = {};
+      
+      if (primaryRole === 'gestor') {
+        // Gestor aprova e envia para análise financeira
+        updateData = {
           status: 'Em análise financeira',
           comentario_gestor: comentario,
           data_aprovacao_gestor: new Date().toISOString(),
-        })
+        };
+      } else if (primaryRole === 'financeiro' || primaryRole === 'admin') {
+        // Financeiro aprova e marca como aprovada
+        updateData = {
+          status: 'Aprovada',
+          comentario_financeiro: comentario,
+          data_analise_financeira: new Date().toISOString(),
+        };
+      }
+
+      const { error } = await supabase
+        .from('solicitacoes_nf')
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -128,6 +142,68 @@ export const RequestManagement = () => {
       toast({
         title: 'Erro',
         description: 'Não foi possível aprovar a solicitação.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSchedulePayment = async (id: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_nf')
+        .update({
+          status: 'Pagamento programado',
+          comentario_financeiro: comentario || 'Pagamento agendado',
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sucesso',
+        description: 'Pagamento programado com sucesso!',
+      });
+      setSelectedRequest(null);
+      setComentario('');
+    } catch (error) {
+      console.error('Erro ao programar pagamento:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível programar o pagamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_nf')
+        .update({
+          status: 'Pago',
+          comentario_financeiro: comentario || 'Pagamento realizado',
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sucesso',
+        description: 'Pagamento registrado com sucesso!',
+      });
+      setSelectedRequest(null);
+      setComentario('');
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível registrar o pagamento.',
         variant: 'destructive',
       });
     } finally {
@@ -189,7 +265,10 @@ export const RequestManagement = () => {
       'Aguardando aprovação do gestor': { variant: 'secondary' as const, icon: Clock, color: 'text-yellow-600' },
       'Em análise financeira': { variant: 'default' as const, icon: Clock, color: 'text-blue-600' },
       'Aprovada': { variant: 'default' as const, icon: CheckCircle, color: 'text-green-600' },
-      'Rejeitada': { variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
+      'Pagamento programado': { variant: 'default' as const, icon: Clock, color: 'text-purple-600' },
+      'Pago': { variant: 'default' as const, icon: CheckCircle, color: 'text-green-700' },
+      'Rejeitada pelo gestor': { variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
+      'Rejeitada pelo financeiro': { variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Aguardando aprovação do gestor'];
@@ -350,6 +429,68 @@ export const RequestManagement = () => {
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             {actionLoading ? 'Rejeitando...' : 'Rejeitar'}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setSelectedRequest(null);
+                              setComentario('');
+                            }}
+                            variant="outline"
+                          >
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ações de Pagamento para Financeiro/Admin */}
+                {(primaryRole === 'financeiro' || primaryRole === 'admin') && 
+                 (solicitacao.status === 'Aprovada' || solicitacao.status === 'Pagamento programado') && (
+                  <div className="mt-4 space-y-3">
+                    {selectedRequest === solicitacao.id && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`comentario-pagamento-${solicitacao.id}`}>
+                          Comentário (opcional)
+                        </Label>
+                        <Textarea
+                          id={`comentario-pagamento-${solicitacao.id}`}
+                          placeholder="Adicione informações sobre o pagamento..."
+                          value={comentario}
+                          onChange={(e) => setComentario(e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      {selectedRequest !== solicitacao.id ? (
+                        <Button
+                          onClick={() => setSelectedRequest(solicitacao.id)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Gerenciar Pagamento
+                        </Button>
+                      ) : (
+                        <>
+                          {solicitacao.status === 'Aprovada' && (
+                            <Button
+                              onClick={() => handleSchedulePayment(solicitacao.id)}
+                              disabled={actionLoading}
+                              className="flex-1 bg-purple-600 hover:bg-purple-700"
+                            >
+                              <Clock className="h-4 w-4 mr-2" />
+                              {actionLoading ? 'Agendando...' : 'Agendar Pagamento'}
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => handleMarkAsPaid(solicitacao.id)}
+                            disabled={actionLoading}
+                            className="flex-1"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            {actionLoading ? 'Registrando...' : 'Marcar como Pago'}
                           </Button>
                           <Button
                             onClick={() => {

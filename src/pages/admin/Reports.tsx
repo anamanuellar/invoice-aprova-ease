@@ -90,8 +90,11 @@ export default function Reports() {
 
   const getStatusColor = (status: string) => {
     if (status === 'Aprovada') return "bg-green-100 text-green-800";
+    if (status === 'Pago') return "bg-green-200 text-green-900";
+    if (status === 'Pagamento programado') return "bg-purple-100 text-purple-800";
     if (status.includes('Rejeitada')) return "bg-red-100 text-red-800";
-    if (status.includes('Aguardando') || status.includes('análise')) return "bg-yellow-100 text-yellow-800";
+    if (status === 'Em análise financeira') return "bg-blue-100 text-blue-800";
+    if (status === 'Aguardando aprovação do gestor') return "bg-yellow-100 text-yellow-800";
     return "bg-gray-100 text-gray-800";
   };
 

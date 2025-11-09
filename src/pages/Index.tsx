@@ -128,6 +128,8 @@ const Index = () => {
   }
 
   const renderDashboard = () => {
+    if (!user) return null;
+    
     switch (primaryRole) {
       case 'admin':
         return <AdminDashboard onViewRequests={() => setCurrentView('manage-requests')} />;
@@ -144,6 +146,7 @@ const Index = () => {
       case 'gestor':
         return (
           <GestorDashboard
+            userId={user.id}
             onViewPendingApprovals={() => setCurrentView('manage-requests')}
             onViewAllRequests={() => setCurrentView('manage-requests')}
           />
@@ -153,6 +156,7 @@ const Index = () => {
       default:
         return (
           <SolicitanteDashboard
+            userId={user.id}
             onNewRequest={() => setCurrentView('company-select')}
             onViewRequests={() => setCurrentView('my-requests')}
           />

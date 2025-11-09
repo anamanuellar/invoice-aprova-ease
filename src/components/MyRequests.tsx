@@ -77,8 +77,29 @@ const statusConfig = {
     color: "text-green-600",
     bgColor: "bg-green-50",
   },
-  "Rejeitada": {
-    label: "Rejeitada",
+  "Pagamento programado": {
+    label: "Pagamento Programado",
+    icon: Clock,
+    variant: "default" as const,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
+  },
+  "Pago": {
+    label: "Pago",
+    icon: CheckCircle,
+    variant: "default" as const,
+    color: "text-green-700",
+    bgColor: "bg-green-100",
+  },
+  "Rejeitada pelo gestor": {
+    label: "Rejeitada pelo Gestor",
+    icon: XCircle,
+    variant: "destructive" as const,
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+  },
+  "Rejeitada pelo financeiro": {
+    label: "Rejeitada pelo Financeiro",
     icon: XCircle,
     variant: "destructive" as const,
     color: "text-red-600",

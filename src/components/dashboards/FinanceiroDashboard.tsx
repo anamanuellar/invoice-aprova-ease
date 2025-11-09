@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   BarChart3 
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FinanceiroDashboardProps {
   onViewPendingAnalysis: () => void;
@@ -22,6 +24,67 @@ export const FinanceiroDashboard = ({
   onViewAllRequests, 
   onViewReports 
 }: FinanceiroDashboardProps) => {
+  const [metrics, setMetrics] = useState({
+    valorAprovadoHoje: 0,
+    aguardandoAnalise: 0,
+    vencimentoHoje: 0,
+    emAtraso: 0
+  });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const hoje = new Date().toISOString().split('T')[0];
+
+      // Buscar todas as solicitações
+      const { data, error } = await supabase
+        .from('solicitacoes_nf')
+        .select('status, valor_total, data_vencimento, data_aprovacao_gestor');
+
+      if (!error && data) {
+        const valorAprovadoHoje = data
+          .filter(s => {
+            const dataAprovacao = s.data_aprovacao_gestor ? s.data_aprovacao_gestor.split('T')[0] : null;
+            return dataAprovacao === hoje && (s.status === 'Aprovada' || s.status === 'Pagamento programado' || s.status === 'Pago');
+          })
+          .reduce((sum, s) => sum + Number(s.valor_total || 0), 0);
+
+        const aguardandoAnalise = data.filter(s => s.status === 'Em análise financeira').length;
+        
+        const vencimentoHoje = data.filter(s => s.data_vencimento === hoje && s.status !== 'Pago').length;
+        
+        const emAtraso = data.filter(s => {
+          const vencimento = new Date(s.data_vencimento);
+          const agora = new Date();
+          return vencimento < agora && s.status !== 'Pago' && s.status !== 'Rejeitada pelo gestor' && s.status !== 'Rejeitada pelo financeiro';
+        }).length;
+
+        setMetrics({
+          valorAprovadoHoje,
+          aguardandoAnalise,
+          vencimentoHoje,
+          emAtraso
+        });
+      }
+    };
+
+    fetchMetrics();
+
+    const channel = supabase
+      .channel('financeiro-dashboard-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'solicitacoes_nf'
+      }, () => {
+        fetchMetrics();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -87,7 +150,9 @@ export const FinanceiroDashboard = ({
             <div className="flex items-center justify-center gap-2 mb-2">
               <DollarSign className="h-5 w-5 text-green-500" />
             </div>
-            <p className="text-2xl font-bold text-green-700">R$ 0</p>
+            <p className="text-2xl font-bold text-green-700">
+              R$ {metrics.valorAprovadoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
             <p className="text-xs text-muted-foreground">Valor Aprovado Hoje</p>
           </CardContent>
         </Card>
@@ -97,7 +162,7 @@ export const FinanceiroDashboard = ({
             <div className="flex items-center justify-center gap-2 mb-2">
               <Clock className="h-5 w-5 text-yellow-500" />
             </div>
-            <p className="text-2xl font-bold text-yellow-700">0</p>
+            <p className="text-2xl font-bold text-yellow-700">{metrics.aguardandoAnalise}</p>
             <p className="text-xs text-muted-foreground">Aguardando Análise</p>
           </CardContent>
         </Card>
@@ -107,7 +172,7 @@ export const FinanceiroDashboard = ({
             <div className="flex items-center justify-center gap-2 mb-2">
               <Calendar className="h-5 w-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-blue-700">0</p>
+            <p className="text-2xl font-bold text-blue-700">{metrics.vencimentoHoje}</p>
             <p className="text-xs text-muted-foreground">Vencimento Hoje</p>
           </CardContent>
         </Card>
@@ -117,7 +182,7 @@ export const FinanceiroDashboard = ({
             <div className="flex items-center justify-center gap-2 mb-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
             </div>
-            <p className="text-2xl font-bold text-red-700">0</p>
+            <p className="text-2xl font-bold text-red-700">{metrics.emAtraso}</p>
             <p className="text-xs text-muted-foreground">Em Atraso</p>
           </CardContent>
         </Card>

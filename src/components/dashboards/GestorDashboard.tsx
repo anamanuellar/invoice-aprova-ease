@@ -1,13 +1,73 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, CheckCircle, XCircle, Clock, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GestorDashboardProps {
   onViewPendingApprovals: () => void;
   onViewAllRequests: () => void;
+  userId: string;
 }
 
-export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests }: GestorDashboardProps) => {
+export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests, userId }: GestorDashboardProps) => {
+  const [statusCounts, setStatusCounts] = useState({
+    aguardando: 0,
+    aprovadas: 0,
+    rejeitadas: 0,
+    total: 0
+  });
+
+  useEffect(() => {
+    const fetchStatusCounts = async () => {
+      // Buscar empresa_id do gestor através de user_roles
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('empresa_id')
+        .eq('user_id', userId)
+        .eq('role', 'gestor')
+        .maybeSingle();
+
+      let query = supabase
+        .from('solicitacoes_nf')
+        .select('status');
+
+      // Se tiver empresa_id associada, filtrar por empresa
+      if (userRoleData?.empresa_id) {
+        query = query.eq('empresa_id', userRoleData.empresa_id);
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data) {
+        const counts = {
+          aguardando: data.filter(s => s.status === 'Aguardando aprovação do gestor').length,
+          aprovadas: data.filter(s => s.status === 'Em análise financeira' || s.status === 'Aprovada' || s.status === 'Pagamento programado' || s.status === 'Pago').length,
+          rejeitadas: data.filter(s => s.status === 'Rejeitada pelo gestor').length,
+          total: data.length
+        };
+        setStatusCounts(counts);
+      }
+    };
+
+    fetchStatusCounts();
+
+    const channel = supabase
+      .channel('gestor-dashboard-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'solicitacoes_nf'
+      }, () => {
+        fetchStatusCounts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -55,7 +115,7 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests }: G
             <div className="flex items-center justify-center gap-2 mb-2">
               <Clock className="h-5 w-5 text-yellow-500" />
             </div>
-            <p className="text-2xl font-bold text-yellow-700">0</p>
+            <p className="text-2xl font-bold text-yellow-700">{statusCounts.aguardando}</p>
             <p className="text-xs text-muted-foreground">Aguardando Aprovação</p>
           </CardContent>
         </Card>
@@ -65,7 +125,7 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests }: G
             <div className="flex items-center justify-center gap-2 mb-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
             </div>
-            <p className="text-2xl font-bold text-green-700">0</p>
+            <p className="text-2xl font-bold text-green-700">{statusCounts.aprovadas}</p>
             <p className="text-xs text-muted-foreground">Aprovadas</p>
           </CardContent>
         </Card>
@@ -75,7 +135,7 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests }: G
             <div className="flex items-center justify-center gap-2 mb-2">
               <XCircle className="h-5 w-5 text-red-500" />
             </div>
-            <p className="text-2xl font-bold text-red-700">0</p>
+            <p className="text-2xl font-bold text-red-700">{statusCounts.rejeitadas}</p>
             <p className="text-xs text-muted-foreground">Rejeitadas</p>
           </CardContent>
         </Card>
@@ -85,7 +145,7 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests }: G
             <div className="flex items-center justify-center gap-2 mb-2">
               <Users className="h-5 w-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-blue-700">0</p>
+            <p className="text-2xl font-bold text-blue-700">{statusCounts.total}</p>
             <p className="text-xs text-muted-foreground">Total do Setor</p>
           </CardContent>
         </Card>
