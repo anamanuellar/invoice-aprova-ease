@@ -16,7 +16,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
-export const AdminDashboard = () => {
+interface AdminDashboardProps {
+  onViewRequests?: () => void;
+}
+
+export const AdminDashboard = ({ onViewRequests }: AdminDashboardProps) => {
   const navigate = useNavigate();
   const [usersCount, setUsersCount] = useState(0);
   const [companiesCount, setCompaniesCount] = useState(0);
@@ -156,7 +160,7 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onViewRequests}>
           <CardContent className="p-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <FileText className="h-5 w-5 text-blue-500" />

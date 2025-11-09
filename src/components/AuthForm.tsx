@@ -16,11 +16,45 @@ interface AuthFormData {
 
 export default function AuthForm() {
   const [loading, setLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const { toast } = useToast();
   
   // Separate forms for login and signup
   const loginForm = useForm<AuthFormData>();
   const signupForm = useForm<AuthFormData>();
+  const resetForm = useForm<{ email: string }>();
+
+  const handleResetPassword = async (data: { email: string }) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Link de recuperação enviado para seu e-mail!",
+        });
+        setShowResetPassword(false);
+        resetForm.reset();
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignUp = async (data: AuthFormData) => {
     setLoading(true);
@@ -130,49 +164,94 @@ export default function AuthForm() {
             </TabsList>
             
             <TabsContent value="login">
-              <form onSubmit={loginForm.handleSubmit(handleSignIn)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    {...loginForm.register('email', { 
-                      required: 'E-mail é obrigatório',
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: 'E-mail inválido'
-                      }
-                    })}
-                  />
-                  {loginForm.formState.errors.email && (
-                    <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    {...loginForm.register('password', { 
-                      required: 'Senha é obrigatória',
-                      minLength: {
-                        value: 6,
-                        message: 'Senha deve ter pelo menos 6 caracteres'
-                      }
-                    })}
-                  />
-                  {loginForm.formState.errors.password && (
-                    <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
-                  )}
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Entrando...' : 'Entrar'}
-                </Button>
-              </form>
+              {!showResetPassword ? (
+                <form onSubmit={loginForm.handleSubmit(handleSignIn)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      {...loginForm.register('email', { 
+                        required: 'E-mail é obrigatório',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'E-mail inválido'
+                        }
+                      })}
+                    />
+                    {loginForm.formState.errors.email && (
+                      <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      {...loginForm.register('password', { 
+                        required: 'Senha é obrigatória',
+                        minLength: {
+                          value: 6,
+                          message: 'Senha deve ter pelo menos 6 caracteres'
+                        }
+                      })}
+                    />
+                    {loginForm.formState.errors.password && (
+                      <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Entrando...' : 'Entrar'}
+                  </Button>
+                  
+                  <Button 
+                    type="button" 
+                    variant="link" 
+                    className="w-full text-sm" 
+                    onClick={() => setShowResetPassword(true)}
+                  >
+                    Esqueci minha senha
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={resetForm.handleSubmit(handleResetPassword)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">E-mail</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      {...resetForm.register('email', { 
+                        required: 'E-mail é obrigatório',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'E-mail inválido'
+                        }
+                      })}
+                    />
+                    {resetForm.formState.errors.email && (
+                      <p className="text-sm text-destructive">{resetForm.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+                  </Button>
+                  
+                  <Button 
+                    type="button" 
+                    variant="link" 
+                    className="w-full text-sm" 
+                    onClick={() => setShowResetPassword(false)}
+                  >
+                    Voltar ao login
+                  </Button>
+                </form>
+              )}
             </TabsContent>
             
             <TabsContent value="signup">

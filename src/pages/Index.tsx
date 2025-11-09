@@ -7,6 +7,7 @@ import AuthForm from "@/components/AuthForm";
 import InvoiceForm from "@/components/InvoiceForm";
 import CompanySelector from "@/components/CompanySelector";
 import { MyRequests } from "@/components/MyRequests";
+import { RequestManagement } from "@/components/RequestManagement";
 import { SolicitanteDashboard } from "@/components/dashboards/SolicitanteDashboard";
 import { GestorDashboard } from "@/components/dashboards/GestorDashboard";
 import { FinanceiroDashboard } from "@/components/dashboards/FinanceiroDashboard";
@@ -16,7 +17,7 @@ import { RoleBasedAccess } from "@/components/RoleBasedAccess";
 const Index = () => {
   const { user, loading, signOut } = useAuth();
   const { primaryRole, hasRole, loading: roleLoading } = useUserRole();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form' | 'my-requests'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form' | 'my-requests' | 'manage-requests'>('dashboard');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // Show loading state while checking authentication and roles
@@ -70,6 +71,30 @@ const Index = () => {
     return <MyRequests userId={user.id} onBack={handleBackToDashboard} />;
   }
 
+  // Show manage requests view
+  if (currentView === 'manage-requests') {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-foreground">
+              Sistema de Solicitação de Pagamentos
+            </h1>
+            <div className="flex gap-2">
+              <Button onClick={handleBackToDashboard} variant="outline">
+                Voltar ao Dashboard
+              </Button>
+              <Button onClick={signOut} variant="outline">
+                Sair
+              </Button>
+            </div>
+          </div>
+          <RequestManagement />
+        </div>
+      </div>
+    );
+  }
+
   // Check if user has any role assigned
   if (!primaryRole) {
     return (
@@ -105,13 +130,13 @@ const Index = () => {
   const renderDashboard = () => {
     switch (primaryRole) {
       case 'admin':
-        return <AdminDashboard />;
+        return <AdminDashboard onViewRequests={() => setCurrentView('manage-requests')} />;
       
       case 'financeiro':
         return (
           <FinanceiroDashboard
-            onViewPendingAnalysis={() => console.log('Ver análises pendentes')}
-            onViewAllRequests={() => console.log('Ver todas solicitações')}
+            onViewPendingAnalysis={() => setCurrentView('manage-requests')}
+            onViewAllRequests={() => setCurrentView('manage-requests')}
             onViewReports={() => console.log('Ver relatórios')}
           />
         );
@@ -119,8 +144,8 @@ const Index = () => {
       case 'gestor':
         return (
           <GestorDashboard
-            onViewPendingApprovals={() => console.log('Ver aprovações pendentes')}
-            onViewAllRequests={() => console.log('Ver todas solicitações')}
+            onViewPendingApprovals={() => setCurrentView('manage-requests')}
+            onViewAllRequests={() => setCurrentView('manage-requests')}
           />
         );
       
