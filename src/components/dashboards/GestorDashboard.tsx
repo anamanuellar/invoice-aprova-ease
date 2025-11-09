@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, CheckCircle, XCircle, Clock, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface GestorDashboardProps {
   onViewPendingApprovals: () => void;
@@ -11,6 +12,7 @@ interface GestorDashboardProps {
 }
 
 export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests, userId }: GestorDashboardProps) => {
+  const navigate = useNavigate();
   const [statusCounts, setStatusCounts] = useState({
     aguardando: 0,
     aprovadas: 0,
@@ -157,6 +159,10 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests, use
           <CardTitle>Ações Rápidas</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          <Button className="w-full justify-start" variant="outline" onClick={() => navigate('/gestor/manage-team')}>
+            <Users className="h-4 w-4 mr-2" />
+            Gerenciar Time
+          </Button>
           <Button className="w-full justify-start" variant="outline">
             <CheckCircle className="h-4 w-4 mr-2" />
             Aprovar Solicitações em Lote

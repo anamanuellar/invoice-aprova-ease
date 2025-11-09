@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
+import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -156,6 +156,34 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteRequest = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta solicitação? Esta ação será registrada no log do sistema.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_nf')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Solicitação excluída com sucesso",
+      });
+
+      fetchRequests();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível excluir a solicitação",
+        variant: "destructive",
+      });
     }
   };
 
@@ -368,15 +396,27 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
                               {config.label}
                             </Badge>
                           </TableCell>
-                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setViewingRequest(request)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalhes
-                            </Button>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setViewingRequest(request)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver detalhes
+                              </Button>
+                              {request.status === 'Aguardando aprovação do gestor' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteRequest(request.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

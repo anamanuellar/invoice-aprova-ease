@@ -12,12 +12,17 @@ import { ArrowLeft, UserPlus, Search, Edit, Trash2, Loader2 } from "lucide-react
 import { useNavigate } from "react-router-dom";
 import { useUsers } from "@/hooks/useUsers";
 import { useCompanies } from "@/hooks/useCompanies";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ManageUsers() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [newUserData, setNewUserData] = useState({
     name: "",
     email: "",
@@ -27,7 +32,7 @@ export default function ManageUsers() {
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  const { users, loading, createUser } = useUsers();
+  const { users, loading, createUser, refetch } = useUsers();
   const { companies } = useCompanies();
 
   // Filter users based on search and role filter
@@ -60,6 +65,89 @@ export default function ManageUsers() {
         password: "",
         roles: [],
         empresaId: ""
+      });
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+
+    try {
+      // Atualizar perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ name: editingUser.name, email: editingUser.email })
+        .eq('user_id', editingUser.id);
+
+      if (profileError) throw profileError;
+
+      // Remover roles antigas
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', editingUser.id);
+
+      // Adicionar novas roles
+      const roleInserts = editingUser.roles.map((role: string) => ({
+        user_id: editingUser.id,
+        role,
+        empresa_id: editingUser.empresaId || null
+      }));
+
+      const { error: rolesError } = await supabase
+        .from('user_roles')
+        .insert(roleInserts);
+
+      if (rolesError) throw rolesError;
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário atualizado com sucesso",
+      });
+
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      // Excluir roles
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Excluir perfil
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário excluído com sucesso",
+      });
+
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
       });
     }
   };
@@ -283,10 +371,27 @@ export default function ManageUsers() {
                       <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              setEditingUser({
+                                id: user.id,
+                                name: user.name,
+                                email: user.email,
+                                roles: user.roles.map(r => r.role),
+                                empresaId: user.roles[0]?.empresa_id || ""
+                              });
+                              setEditDialogOpen(true);
+                            }}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -298,6 +403,63 @@ export default function ManageUsers() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit User Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Editar Usuário</DialogTitle>
+            </DialogHeader>
+            {editingUser && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-name">Nome Completo</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingUser.name}
+                      onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editingUser.email}
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Papéis</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {["solicitante", "gestor", "financeiro", "admin"].map((role) => (
+                      <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingUser.roles.includes(role)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditingUser({ ...editingUser, roles: [...editingUser.roles, role] });
+                            } else {
+                              setEditingUser({ ...editingUser, roles: editingUser.roles.filter((r: string) => r !== role) });
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="capitalize">{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <Button className="w-full" onClick={handleEditUser}>
+                  Salvar Alterações
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -14,6 +14,11 @@ import AddUser from "./pages/admin/AddUser";
 import ManagePermissions from "./pages/admin/ManagePermissions";
 import SystemBackup from "./pages/admin/SystemBackup";
 import NotificationSettings from "./pages/admin/NotificationSettings";
+import ApprovePaymentsBatch from "./pages/financeiro/ApprovePaymentsBatch";
+import SchedulePayments from "./pages/financeiro/SchedulePayments";
+import CashFlowReport from "./pages/financeiro/CashFlowReport";
+import PaymentsReport from "./pages/financeiro/PaymentsReport";
+import ManageTeam from "./pages/gestor/ManageTeam";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +40,11 @@ const App = () => (
               <Route path="/admin/permissions" element={<ManagePermissions />} />
               <Route path="/admin/backup" element={<SystemBackup />} />
               <Route path="/admin/notifications" element={<NotificationSettings />} />
+              <Route path="/financeiro/approve-batch" element={<ApprovePaymentsBatch />} />
+              <Route path="/financeiro/schedule-payments" element={<SchedulePayments />} />
+              <Route path="/financeiro/cash-flow" element={<CashFlowReport />} />
+              <Route path="/financeiro/payments-report" element={<PaymentsReport />} />
+              <Route path="/gestor/manage-team" element={<ManageTeam />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
           </Routes>

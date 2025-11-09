@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface FinanceiroDashboardProps {
   onViewPendingAnalysis: () => void;
@@ -24,6 +25,7 @@ export const FinanceiroDashboard = ({
   onViewAllRequests, 
   onViewReports 
 }: FinanceiroDashboardProps) => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState({
     valorAprovadoHoje: 0,
     aguardandoAnalise: 0,
@@ -194,19 +196,35 @@ export const FinanceiroDashboard = ({
           <CardTitle>Ações Financeiras</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button className="w-full justify-start" variant="outline">
+          <Button 
+            className="w-full justify-start" 
+            variant="outline"
+            onClick={() => navigate('/financeiro/approve-batch')}
+          >
             <CheckCircle className="h-4 w-4 mr-2" />
             Aprovar Pagamentos em Lote
           </Button>
-          <Button className="w-full justify-start" variant="outline">
+          <Button 
+            className="w-full justify-start" 
+            variant="outline"
+            onClick={() => navigate('/financeiro/schedule-payments')}
+          >
             <Calendar className="h-4 w-4 mr-2" />
             Agendar Pagamentos
           </Button>
-          <Button className="w-full justify-start" variant="outline">
+          <Button 
+            className="w-full justify-start" 
+            variant="outline"
+            onClick={() => navigate('/financeiro/cash-flow')}
+          >
             <TrendingUp className="h-4 w-4 mr-2" />
             Relatório de Fluxo de Caixa
           </Button>
-          <Button className="w-full justify-start" variant="outline">
+          <Button 
+            className="w-full justify-start" 
+            variant="outline"
+            onClick={() => navigate('/financeiro/payments-report')}
+          >
             <DollarSign className="h-4 w-4 mr-2" />
             Relatório de Pagamentos
           </Button>

@@ -46,6 +46,8 @@ export const RequestManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
   const [viewingRequest, setViewingRequest] = useState<Solicitacao | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentDate, setPaymentDate] = useState<Date | null>(null);
   const [comentario, setComentario] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
