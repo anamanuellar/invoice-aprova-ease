@@ -78,6 +78,7 @@ export const FinanceiroDashboard = ({
         schema: 'public',
         table: 'solicitacoes_nf'
       }, () => {
+        console.log('Dashboard Financeiro - solicitação atualizada');
         fetchMetrics();
       })
       .subscribe();

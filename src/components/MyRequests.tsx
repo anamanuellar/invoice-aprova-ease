@@ -117,6 +117,26 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
 
   useEffect(() => {
     fetchRequests();
+
+    const channel = supabase
+      .channel('my-requests-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'solicitacoes_nf',
+          filter: `solicitante_id=eq.${userId}`
+        },
+        () => {
+          console.log('Minha solicitação atualizada - refazendo fetch');
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userId]);
 
   const fetchRequests = async () => {
@@ -172,12 +192,13 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
 
       if (error) throw error;
 
+      console.log('Solicitação excluída com sucesso, refazendo fetch');
+      await fetchRequests();
+
       toast({
         title: "Sucesso",
         description: "Solicitação excluída com sucesso",
       });
-
-      fetchRequests();
     } catch (error: any) {
       toast({
         title: "Erro",
