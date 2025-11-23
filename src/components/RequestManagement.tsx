@@ -90,20 +90,25 @@ export const RequestManagement = () => {
   };
 
   useEffect(() => {
+    if (!user) return;
+    
     fetchSolicitacoes();
 
     const channel = supabase
       .channel('solicitacoes-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'solicitacoes_nf' },
-        () => fetchSolicitacoes()
+        () => {
+          console.log('Solicitação atualizada - refazendo fetch');
+          fetchSolicitacoes();
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user, primaryRole]);
 
   const handleApprove = async (id: string) => {
     setActionLoading(true);
@@ -132,6 +137,9 @@ export const RequestManagement = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      console.log('Solicitação aprovada com sucesso, refazendo fetch');
+      await fetchSolicitacoes();
 
       toast({
         title: 'Sucesso',
@@ -164,6 +172,9 @@ export const RequestManagement = () => {
 
       if (error) throw error;
 
+      console.log('Pagamento programado com sucesso, refazendo fetch');
+      await fetchSolicitacoes();
+
       toast({
         title: 'Sucesso',
         description: 'Pagamento programado com sucesso!',
@@ -194,6 +205,9 @@ export const RequestManagement = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      console.log('Pagamento registrado com sucesso, refazendo fetch');
+      await fetchSolicitacoes();
 
       toast({
         title: 'Sucesso',
@@ -243,6 +257,9 @@ export const RequestManagement = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      console.log('Solicitação rejeitada com sucesso, refazendo fetch');
+      await fetchSolicitacoes();
 
       toast({
         title: 'Sucesso',

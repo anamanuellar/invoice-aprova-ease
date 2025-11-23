@@ -46,6 +46,7 @@ export const SolicitanteDashboard = ({ onNewRequest, onViewRequests, userId }: S
         table: 'solicitacoes_nf',
         filter: `solicitante_id=eq.${userId}`
       }, () => {
+        console.log('Dashboard Solicitante - solicitação atualizada');
         fetchStatusCounts();
       })
       .subscribe();

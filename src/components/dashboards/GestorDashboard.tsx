@@ -61,6 +61,7 @@ export const GestorDashboard = ({ onViewPendingApprovals, onViewAllRequests, use
         schema: 'public',
         table: 'solicitacoes_nf'
       }, () => {
+        console.log('Dashboard Gestor - solicitação atualizada');
         fetchStatusCounts();
       })
       .subscribe();
