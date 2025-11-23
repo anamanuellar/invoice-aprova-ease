@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,20 @@ import { GestorDashboard } from "@/components/dashboards/GestorDashboard";
 import { FinanceiroDashboard } from "@/components/dashboards/FinanceiroDashboard";
 import { AdminDashboard } from "@/components/dashboards/AdminDashboard";
 import { RoleBasedAccess } from "@/components/RoleBasedAccess";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, requiresPasswordChange } = useAuth();
   const { primaryRole, hasRole, loading: roleLoading } = useUserRole();
   const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form' | 'my-requests' | 'manage-requests'>('dashboard');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user && requiresPasswordChange) {
+      setShowPasswordDialog(true);
+    }
+  }, [user, loading, requiresPasswordChange]);
 
   // Show loading state while checking authentication and roles
   if (loading || roleLoading) {
@@ -232,6 +240,14 @@ const Index = () => {
           </RoleBasedAccess>
         </div>
       </div>
+      
+      <ChangePasswordDialog 
+        open={showPasswordDialog} 
+        onSuccess={() => {
+          setShowPasswordDialog(false);
+          window.location.reload();
+        }} 
+      />
     </div>
   );
 };

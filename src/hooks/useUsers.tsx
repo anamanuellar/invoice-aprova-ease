@@ -7,6 +7,7 @@ export interface UserWithRoles {
   name: string;
   email: string;
   created_at: string;
+  active: boolean;
   roles: Array<{
     role: string;
     empresa_id: string | null;
@@ -32,7 +33,8 @@ export const useUsers = () => {
           user_id,
           name,
           email,
-          created_at
+          created_at,
+          active
         `);
 
       if (profilesError) throw profilesError;
@@ -50,6 +52,7 @@ export const useUsers = () => {
         name: profile.name,
         email: profile.email,
         created_at: profile.created_at,
+        active: profile.active,
         roles: userRoles?.filter(role => role.user_id === profile.user_id) || []
       })) || [];
 

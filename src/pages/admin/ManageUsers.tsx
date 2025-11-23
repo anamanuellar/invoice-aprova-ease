@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, UserPlus, Search, Edit, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, UserPlus, Search, Edit, Trash2, Loader2, Key, UserCheck, UserX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUsers } from "@/hooks/useUsers";
 import { useCompanies } from "@/hooks/useCompanies";
@@ -22,7 +22,10 @@ export default function ManageUsers() {
   const [filterRole, setFilterRole] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<any>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState("");
   const [newUserData, setNewUserData] = useState({
     name: "",
     email: "",
@@ -34,6 +37,39 @@ export default function ManageUsers() {
 
   const { users, loading, createUser, refetch } = useUsers();
   const { companies } = useCompanies();
+
+  // Real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   // Filter users based on search and role filter
   const filteredUsers = useMemo(() => {
@@ -117,36 +153,85 @@ export default function ManageUsers() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
+  const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      // Excluir roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      // Excluir perfil
       const { error } = await supabase
         .from('profiles')
-        .delete()
+        .update({ active: !currentStatus })
         .eq('user_id', userId);
 
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: "Usuário excluído com sucesso",
+        title: currentStatus ? "Usuário desativado" : "Usuário ativado",
+        description: currentStatus 
+          ? "O usuário não poderá mais acessar o sistema." 
+          : "O usuário pode acessar o sistema novamente.",
       });
 
       refetch();
-    } catch (error: any) {
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      toast({
+        title: "Erro ao alterar status",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !temporaryPassword) {
       toast({
         title: "Erro",
-        description: error.message,
+        description: "Por favor, insira uma senha temporária",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (temporaryPassword.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter no mínimo 6 caracteres",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { error } = await supabase.functions.invoke('reset-user-password', {
+        body: {
+          userId: resetPasswordUser.id,
+          temporaryPassword: temporaryPassword,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Senha redefinida",
+        description: "A senha temporária foi definida com sucesso",
+      });
+
+      setResetPasswordDialogOpen(false);
+      setResetPasswordUser(null);
+      setTemporaryPassword('');
+      refetch();
+    } catch (err) {
+      console.error('Error resetting password:', err);
+      toast({
+        title: "Erro ao redefinir senha",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
         variant: "destructive",
       });
     }
@@ -350,13 +435,13 @@ export default function ManageUsers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((user: any) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
-                          {user.roles.length > 0 ? user.roles.map((roleObj, index) => (
+                          {user.roles.length > 0 ? user.roles.map((roleObj: any, index: number) => (
                             <Badge key={index} className={getRoleBadgeColor(roleObj.role)}>
                               {roleObj.role}
                             </Badge>
@@ -366,20 +451,23 @@ export default function ManageUsers() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default">Ativo</Badge>
+                        <Badge variant={user.active ? "default" : "destructive"}>
+                          {user.active ? "Ativo" : "Inativo"}
+                        </Badge>
                       </TableCell>
                       <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-1 justify-end">
                           <Button 
                             variant="ghost" 
                             size="icon"
+                            title="Editar usuário"
                             onClick={() => {
                               setEditingUser({
                                 id: user.id,
                                 name: user.name,
                                 email: user.email,
-                                roles: user.roles.map(r => r.role),
+                                roles: user.roles.map((r: any) => r.role),
                                 empresaId: user.roles[0]?.empresa_id || ""
                               });
                               setEditDialogOpen(true);
@@ -390,9 +478,21 @@ export default function ManageUsers() {
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => handleDeleteUser(user.id)}
+                            title="Redefinir senha"
+                            onClick={() => {
+                              setResetPasswordUser(user);
+                              setResetPasswordDialogOpen(true);
+                            }}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            title={user.active ? "Desativar usuário" : "Ativar usuário"}
+                            onClick={() => handleToggleUserStatus(user.id, user.active)}
+                          >
+                            {user.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
                         </div>
                       </TableCell>
@@ -455,6 +555,36 @@ export default function ManageUsers() {
                 </div>
                 <Button className="w-full" onClick={handleEditUser}>
                   Salvar Alterações
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Redefinir Senha</DialogTitle>
+            </DialogHeader>
+            {resetPasswordUser && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Defina uma senha temporária para <strong>{resetPasswordUser.name}</strong>. 
+                  O usuário será obrigado a alterar a senha no próximo login.
+                </p>
+                <div>
+                  <Label htmlFor="temp-password">Senha Temporária</Label>
+                  <Input
+                    id="temp-password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={temporaryPassword}
+                    onChange={(e) => setTemporaryPassword(e.target.value)}
+                  />
+                </div>
+                <Button className="w-full" onClick={handleResetPassword}>
+                  Redefinir Senha
                 </Button>
               </div>
             )}
