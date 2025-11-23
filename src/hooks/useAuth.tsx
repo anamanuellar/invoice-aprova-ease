@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  requiresPasswordChange: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  requiresPasswordChange: false,
   signOut: async () => {},
 });
 
@@ -20,6 +22,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   useEffect(() => {
     console.log('Auth useEffect iniciando...');
@@ -42,6 +45,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         clearTimeout(timeout);
+        
+        // Check password change requirement
+        if (session?.user) {
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('requires_password_change, active')
+              .eq('user_id', session.user.id)
+              .single();
+            
+            if (profile) {
+              setRequiresPasswordChange(profile.requires_password_change);
+              
+              // Sign out inactive users
+              if (!profile.active) {
+                await supabase.auth.signOut();
+              }
+            }
+          }, 0);
+        } else {
+          setRequiresPasswordChange(false);
+        }
       }
     );
 
@@ -77,7 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, requiresPasswordChange, signOut }}>
       {children}
     </AuthContext.Provider>
   );
