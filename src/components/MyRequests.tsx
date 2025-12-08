@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +109,7 @@ const statusConfig = {
 };
 
 export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<Request[]>([]);
   const [companies, setCompanies] = useState<Record<string, Company>>({});
   const [loading, setLoading] = useState(true);
@@ -427,6 +429,16 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver detalhes
                               </Button>
+                              {(request.status === 'Aguardando aprovação do gestor' || request.status === 'Rejeitada pelo gestor') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/solicitacao/editar/${request.id}`)}
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
                               {request.status === 'Aguardando aprovação do gestor' && (
                                 <Button
                                   variant="ghost"

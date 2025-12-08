@@ -33,7 +33,6 @@ const formSchema = z.object({
   dataVencimento: z.date({ required_error: "Data de vencimento é obrigatória" }),
   valorTotal: z.string().min(1, "Valor total é obrigatório"),
   produtoServico: z.string().min(1, "Produto/Serviço é obrigatório"),
-  centroCusto: z.string().min(1, "Centro de custo é obrigatório"),
   previsaoPagamento: z.date().optional(),
   arquivoNF: z.any().optional(),
   justificativaVencimentoAntecipado: z.string().optional(),
@@ -80,7 +79,6 @@ export default function InvoiceWizard({
       valorTotal: "",
       produtoServico: "",
       setor: "",
-      centroCusto: "",
     },
   });
 
@@ -114,7 +112,6 @@ export default function InvoiceWizard({
         dataVencimento: editingRequest.data_vencimento ? new Date(editingRequest.data_vencimento) : undefined,
         valorTotal: editingRequest.valor_total ? `R$ ${Number(editingRequest.valor_total).toFixed(2).replace('.', ',')}` : '',
         produtoServico: editingRequest.produto_servico || '',
-        centroCusto: editingRequest.centro_custo_id || '',
         formaPagamento: editingRequest.forma_pagamento || undefined,
         banco: editingRequest.banco || '',
         agencia: editingRequest.agencia || '',
@@ -159,7 +156,7 @@ export default function InvoiceWizard({
   const validateStep = async (step: number): Promise<boolean> => {
     const fields: Record<number, (keyof InvoiceFormData)[]> = {
       1: ['empresa_id', 'nomeCompleto', 'nomeFornecedor', 'cnpjFornecedor', 'setor'],
-      2: ['numeroNF', 'dataEmissao', 'dataVencimento', 'valorTotal', 'produtoServico', 'centroCusto'],
+      2: ['numeroNF', 'dataEmissao', 'dataVencimento', 'valorTotal', 'produtoServico'],
       3: ['formaPagamento'],
     };
     
@@ -235,13 +232,13 @@ export default function InvoiceWizard({
         empresa_id: data.empresa_id,
         nome_solicitante: data.nomeCompleto,
         setor_id: data.setor,
+        centro_custo_id: data.setor, // Usando setor como centro de custo
         nome_fornecedor: data.nomeFornecedor,
         cnpj_fornecedor: data.cnpjFornecedor,
         numero_nf: data.numeroNF,
         data_emissao: format(data.dataEmissao, 'yyyy-MM-dd'),
         data_vencimento: format(data.dataVencimento, 'yyyy-MM-dd'),
         produto_servico: data.produtoServico,
-        centro_custo_id: data.centroCusto,
         valor_total: valorTotal,
         arquivo_nf_url: invoiceFileUrl,
         previsao_pagamento: data.previsaoPagamento ? format(data.previsaoPagamento, 'yyyy-MM-dd') : null,
@@ -255,6 +252,7 @@ export default function InvoiceWizard({
         cnpj_cpf_titular: data.cnpjCpfTitular || null,
         nome_titular_conta: data.nomeTitularConta || null,
         justificativa_divergencia_titular: data.justificativaDivergenciaTitular || null,
+        status: editingRequest?.status === 'Rejeitada pelo gestor' ? 'Aguardando aprovação do gestor' : undefined,
       };
 
       if (editingRequest) {

@@ -22,6 +22,7 @@ import ManageTeam from "./pages/gestor/ManageTeam";
 import NewRequest from "./pages/solicitacao/NewRequest";
 import MyRequestsPage from "./pages/solicitacao/MyRequestsPage";
 import ManageRequestsPage from "./pages/solicitacao/ManageRequestsPage";
+import EditRequest from "./pages/solicitacao/EditRequest";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/solicitacao/nova" element={<NewRequest />} />
+              <Route path="/solicitacao/editar/:id" element={<EditRequest />} />
               <Route path="/minhas-solicitacoes" element={<MyRequestsPage />} />
               <Route path="/gerenciar-solicitacoes" element={<ManageRequestsPage />} />
               <Route path="/admin/users" element={<ManageUsers />} />

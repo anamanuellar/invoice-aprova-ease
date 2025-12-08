@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { supabase } from '@/integrations/supabase/client';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,12 +19,6 @@ interface Step2Props {
   isEditing?: boolean;
 }
 
-interface CentroCusto {
-  id: string;
-  nome: string;
-  codigo: string | null;
-}
-
 const formatCurrency = (value: string): string => {
   const cleanValue = value.replace(/[^\d]/g, '');
   const numberValue = parseInt(cleanValue) / 100;
@@ -38,21 +29,8 @@ const formatCurrency = (value: string): string => {
 };
 
 export function Step2InvoiceDetails({ form, selectedNFFile, setSelectedNFFile, isEditing }: Step2Props) {
-  const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([]);
-  
   const watchedVencimento = form.watch("dataVencimento");
   const isEarlyDueDate = watchedVencimento ? isBefore(watchedVencimento, addDays(new Date(), 10)) : false;
-
-  useEffect(() => {
-    const fetchCentrosCusto = async () => {
-      const { data } = await supabase
-        .from('centros_custo')
-        .select('*')
-        .order('nome');
-      if (data) setCentrosCusto(data);
-    };
-    fetchCentrosCusto();
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -174,32 +152,6 @@ export function Step2InvoiceDetails({ form, selectedNFFile, setSelectedNFFile, i
                   />
                 </PopoverContent>
               </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Centro de custo */}
-        <FormField
-          control={form.control}
-          name="centroCusto"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Centro de Custo *</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o centro de custo" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {centrosCusto.map((centro) => (
-                    <SelectItem key={centro.id} value={centro.id}>
-                      {centro.codigo ? `${centro.codigo} - ` : ''}{centro.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <FormMessage />
             </FormItem>
           )}
