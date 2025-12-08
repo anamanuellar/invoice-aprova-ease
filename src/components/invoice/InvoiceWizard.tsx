@@ -164,10 +164,19 @@ export default function InvoiceWizard({
     return result;
   };
 
-  const nextStep = async () => {
+  const nextStep = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const isValid = await validateStep(currentStep);
     if (isValid && currentStep < 3) {
       setCurrentStep(currentStep + 1);
+    }
+  };
+
+  // Prevenir submit por Enter em etapas anteriores
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && currentStep < 3) {
+      e.preventDefault();
     }
   };
 
@@ -178,6 +187,12 @@ export default function InvoiceWizard({
   };
 
   const onSubmit = async (data: InvoiceFormData) => {
+    // Verificação de segurança: só submeter na última etapa
+    if (currentStep !== 3) {
+      console.log('Tentativa de submit em etapa incorreta, ignorando');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -362,7 +377,7 @@ export default function InvoiceWizard({
 
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} onKeyDown={handleKeyDown} className="space-y-6">
                 {currentStep === 1 && (
                   <Step1CompanySupplier 
                     form={form} 
