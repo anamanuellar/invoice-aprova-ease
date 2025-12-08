@@ -42,30 +42,6 @@ const Index = () => {
     return <AuthForm />;
   }
 
-  // Show manage requests view
-  if (currentView === 'manage-requests') {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground">
-              Sistema de Solicitação de Pagamentos
-            </h1>
-            <div className="flex gap-2">
-              <Button onClick={handleBackToDashboard} variant="outline">
-                Voltar ao Dashboard
-              </Button>
-              <Button onClick={signOut} variant="outline">
-                Sair
-              </Button>
-            </div>
-          </div>
-          <RequestManagement />
-        </div>
-      </div>
-    );
-  }
-
   // Check if user has any role assigned
   if (!primaryRole) {
     return (
