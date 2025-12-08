@@ -149,7 +149,7 @@ export type Database = {
           arquivo_boleto_url: string | null
           arquivo_nf_url: string | null
           banco: string | null
-          centro_custo_id: string
+          centro_custo_id: string | null
           chave_pix: string | null
           cnpj_cpf_titular: string | null
           cnpj_fornecedor: string
@@ -184,7 +184,7 @@ export type Database = {
           arquivo_boleto_url?: string | null
           arquivo_nf_url?: string | null
           banco?: string | null
-          centro_custo_id: string
+          centro_custo_id?: string | null
           chave_pix?: string | null
           cnpj_cpf_titular?: string | null
           cnpj_fornecedor: string
@@ -219,7 +219,7 @@ export type Database = {
           arquivo_boleto_url?: string | null
           arquivo_nf_url?: string | null
           banco?: string | null
-          centro_custo_id?: string
+          centro_custo_id?: string | null
           chave_pix?: string | null
           cnpj_cpf_titular?: string | null
           cnpj_fornecedor?: string
