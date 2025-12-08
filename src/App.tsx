@@ -19,6 +19,9 @@ import SchedulePayments from "./pages/financeiro/SchedulePayments";
 import CashFlowReport from "./pages/financeiro/CashFlowReport";
 import PaymentsReport from "./pages/financeiro/PaymentsReport";
 import ManageTeam from "./pages/gestor/ManageTeam";
+import NewRequest from "./pages/solicitacao/NewRequest";
+import MyRequestsPage from "./pages/solicitacao/MyRequestsPage";
+import ManageRequestsPage from "./pages/solicitacao/ManageRequestsPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +34,9 @@ const App = () => (
         <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/solicitacao/nova" element={<NewRequest />} />
+              <Route path="/minhas-solicitacoes" element={<MyRequestsPage />} />
+              <Route path="/gerenciar-solicitacoes" element={<ManageRequestsPage />} />
               <Route path="/admin/users" element={<ManageUsers />} />
               <Route path="/admin/manage-users" element={<ManageUsers />} />
               <Route path="/admin/companies" element={<ManageCompanies />} />

@@ -1,25 +1,22 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AuthForm from "@/components/AuthForm";
-import InvoiceForm from "@/components/InvoiceForm";
-import CompanySelector from "@/components/CompanySelector";
-import { MyRequests } from "@/components/MyRequests";
-import { RequestManagement } from "@/components/RequestManagement";
 import { SolicitanteDashboard } from "@/components/dashboards/SolicitanteDashboard";
 import { GestorDashboard } from "@/components/dashboards/GestorDashboard";
 import { FinanceiroDashboard } from "@/components/dashboards/FinanceiroDashboard";
 import { AdminDashboard } from "@/components/dashboards/AdminDashboard";
 import { RoleBasedAccess } from "@/components/RoleBasedAccess";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { LogOut } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user, loading, signOut, requiresPasswordChange } = useAuth();
-  const { primaryRole, hasRole, loading: roleLoading } = useUserRole();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'company-select' | 'form' | 'my-requests' | 'manage-requests'>('dashboard');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const { primaryRole, loading: roleLoading } = useUserRole();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
@@ -28,7 +25,6 @@ const Index = () => {
     }
   }, [user, loading, requiresPasswordChange]);
 
-  // Show loading state while checking authentication and roles
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -42,41 +38,8 @@ const Index = () => {
     );
   }
 
-  // Show auth form if user is not authenticated
   if (!user) {
     return <AuthForm />;
-  }
-
-  const handleCompanySelect = (companyId: string) => {
-    setSelectedCompanyId(companyId);
-    setCurrentView('form');
-  };
-
-  const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
-    setSelectedCompanyId(null);
-  };
-
-  // Show company selector view
-  if (currentView === 'company-select') {
-    return <CompanySelector onCompanySelect={handleCompanySelect} />;
-  }
-
-  // Show invoice form view
-  if (currentView === 'form' && selectedCompanyId) {
-    return (
-      <InvoiceForm
-        user={user}
-        companyId={selectedCompanyId}
-        onSuccess={handleBackToDashboard}
-        onBack={handleBackToDashboard}
-      />
-    );
-  }
-
-  // Show my requests view
-  if (currentView === 'my-requests') {
-    return <MyRequests userId={user.id} onBack={handleBackToDashboard} />;
   }
 
   // Show manage requests view
@@ -140,14 +103,14 @@ const Index = () => {
     
     switch (primaryRole) {
       case 'admin':
-        return <AdminDashboard onViewRequests={() => setCurrentView('manage-requests')} />;
+        return <AdminDashboard onViewRequests={() => navigate('/gerenciar-solicitacoes')} />;
       
       case 'financeiro':
         return (
           <FinanceiroDashboard
-            onViewPendingAnalysis={() => setCurrentView('manage-requests')}
-            onViewAllRequests={() => setCurrentView('manage-requests')}
-            onViewReports={() => console.log('Ver relatórios')}
+            onViewPendingAnalysis={() => navigate('/gerenciar-solicitacoes')}
+            onViewAllRequests={() => navigate('/gerenciar-solicitacoes')}
+            onViewReports={() => navigate('/financeiro/payments-report')}
           />
         );
       
@@ -155,8 +118,8 @@ const Index = () => {
         return (
           <GestorDashboard
             userId={user.id}
-            onViewPendingApprovals={() => setCurrentView('manage-requests')}
-            onViewAllRequests={() => setCurrentView('manage-requests')}
+            onViewPendingApprovals={() => navigate('/gerenciar-solicitacoes')}
+            onViewAllRequests={() => navigate('/gerenciar-solicitacoes')}
           />
         );
       
@@ -165,8 +128,8 @@ const Index = () => {
         return (
           <SolicitanteDashboard
             userId={user.id}
-            onNewRequest={() => setCurrentView('company-select')}
-            onViewRequests={() => setCurrentView('my-requests')}
+            onNewRequest={() => navigate('/solicitacao/nova')}
+            onViewRequests={() => navigate('/minhas-solicitacoes')}
           />
         );
     }
@@ -189,7 +152,8 @@ const Index = () => {
               </span>
             </p>
           </div>
-          <Button onClick={signOut} variant="outline">
+          <Button onClick={signOut} variant="outline" size="sm">
+            <LogOut className="h-4 w-4 mr-2" />
             Sair
           </Button>
         </div>
