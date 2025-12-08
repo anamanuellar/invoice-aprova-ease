@@ -227,12 +227,11 @@ export default function InvoiceWizard({
       // Convert valor_total to number
       const valorTotal = parseFloat(data.valorTotal.replace(/[^\d,]/g, '').replace(',', '.'));
 
-      const requestData = {
+      const requestData: any = {
         solicitante_id: user.id,
         empresa_id: data.empresa_id,
         nome_solicitante: data.nomeCompleto,
         setor_id: data.setor,
-        centro_custo_id: data.setor, // Usando setor como centro de custo
         nome_fornecedor: data.nomeFornecedor,
         cnpj_fornecedor: data.cnpjFornecedor,
         numero_nf: data.numeroNF,
@@ -252,8 +251,12 @@ export default function InvoiceWizard({
         cnpj_cpf_titular: data.cnpjCpfTitular || null,
         nome_titular_conta: data.nomeTitularConta || null,
         justificativa_divergencia_titular: data.justificativaDivergenciaTitular || null,
-        status: editingRequest?.status === 'Rejeitada pelo gestor' ? 'Aguardando aprovação do gestor' : undefined,
       };
+
+      // Se está reenviando uma solicitação rejeitada, volta o status para aguardando
+      if (editingRequest?.status === 'Rejeitada pelo gestor') {
+        requestData.status = 'Aguardando aprovação do gestor';
+      }
 
       if (editingRequest) {
         const { error } = await supabase
