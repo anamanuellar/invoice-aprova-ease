@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -20,12 +20,12 @@ interface UseUserRoleReturn {
 }
 
 export const useUserRole = (): UseUserRoleReturn => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserRoles = async () => {
+  const fetchUserRoles = useCallback(async () => {
     if (!user) {
       setUserRoles([]);
       setLoading(false);
@@ -33,7 +33,6 @@ export const useUserRole = (): UseUserRoleReturn => {
     }
 
     try {
-      setLoading(true);
       setError(null);
 
       const { data, error: fetchError } = await supabase
@@ -52,11 +51,65 @@ export const useUserRole = (): UseUserRoleReturn => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchUserRoles();
-  }, [user]);
+    let mounted = true;
+
+    // Se auth ainda está carregando, aguarda
+    if (authLoading) {
+      return;
+    }
+
+    // Se não tem user, para o loading
+    if (!user) {
+      if (mounted) {
+        setUserRoles([]);
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Buscar roles
+    const loadRoles = async () => {
+      if (mounted) setLoading(true);
+      
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('user_roles')
+          .select('role, empresa_id')
+          .eq('user_id', user.id);
+
+        if (fetchError) throw fetchError;
+        
+        if (mounted) {
+          setUserRoles(data || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar roles do usuário:', err);
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Erro desconhecido');
+          setLoading(false);
+        }
+      }
+    };
+
+    loadRoles();
+
+    // Timeout de segurança de 5 segundos
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.log('useUserRole: timeout de segurança atingido');
+        setLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
+  }, [user, authLoading]);
 
   const hasRole = (role: UserRole): boolean => {
     return userRoles.some(userRole => userRole.role === role);
