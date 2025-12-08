@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,14 +23,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const initialCheckDone = useRef(false);
 
   useEffect(() => {
-    console.log('Auth useEffect iniciando...');
     let mounted = true;
     
     // Timeout para garantir que não fique carregando forever
     const timeout = setTimeout(() => {
-      if (mounted) {
+      if (mounted && loading) {
         console.log('Timeout atingido, parando loading');
         setLoading(false);
       }
@@ -38,33 +38,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, newSession) => {
         if (!mounted) return;
-        console.log('Auth state changed:', event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        // Evitar processamento se já temos a mesma sessão
+        if (event === 'INITIAL_SESSION' && initialCheckDone.current) {
+          return;
+        }
+        
+        console.log('Auth state changed:', event);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setLoading(false);
         clearTimeout(timeout);
         
-        // Check password change requirement
-        if (session?.user) {
-          setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('requires_password_change, active')
-              .eq('user_id', session.user.id)
-              .single();
+        // Check password change requirement only on sign in or initial session
+        if (newSession?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('requires_password_change, active')
+            .eq('user_id', newSession.user.id)
+            .single();
+          
+          if (profile && mounted) {
+            setRequiresPasswordChange(profile.requires_password_change);
             
-            if (profile) {
-              setRequiresPasswordChange(profile.requires_password_change);
-              
-              // Sign out inactive users
-              if (!profile.active) {
-                await supabase.auth.signOut();
-              }
+            // Sign out inactive users
+            if (!profile.active) {
+              await supabase.auth.signOut();
             }
-          }, 0);
-        } else {
+          }
+        } else if (!newSession) {
           setRequiresPasswordChange(false);
         }
       }
@@ -72,14 +76,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
+      .then(({ data: { session: existingSession }, error }) => {
         if (!mounted) return;
-        console.log('Getting session:', session, error);
+        initialCheckDone.current = true;
+        
         if (error) {
           console.error('Erro ao obter sessão:', error);
         }
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(existingSession);
+        setUser(existingSession?.user ?? null);
         setLoading(false);
         clearTimeout(timeout);
       })
