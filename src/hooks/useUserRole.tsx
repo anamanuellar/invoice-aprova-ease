@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -15,6 +15,7 @@ interface UseUserRoleReturn {
   hasRole: (role: UserRole) => boolean;
   hasRoleInCompany: (role: UserRole, empresaId?: string) => boolean;
   loading: boolean;
+  initialized: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
@@ -22,17 +23,26 @@ interface UseUserRoleReturn {
 export const useUserRole = (): UseUserRoleReturn => {
   const { user, loading: authLoading } = useAuth();
   const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
   const fetchUserRoles = useCallback(async () => {
     if (!user) {
       setUserRoles([]);
-      setLoading(false);
+      setInitialized(true);
+      return;
+    }
+
+    // Prevent duplicate fetches
+    if (fetchingRef.current && lastUserIdRef.current === user.id) {
       return;
     }
 
     try {
+      fetchingRef.current = true;
+      lastUserIdRef.current = user.id;
       setError(null);
 
       const { data, error: fetchError } = await supabase
@@ -49,67 +59,38 @@ export const useUserRole = (): UseUserRoleReturn => {
       console.error('Erro ao buscar roles do usuário:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
-      setLoading(false);
+      fetchingRef.current = false;
+      setInitialized(true);
     }
   }, [user]);
 
   useEffect(() => {
-    let mounted = true;
+    // Reset when user changes (logout)
+    if (!user && lastUserIdRef.current) {
+      setUserRoles([]);
+      setInitialized(false);
+      lastUserIdRef.current = null;
+      return;
+    }
 
-    // Se auth ainda está carregando, aguarda
+    // Wait for auth to finish loading
     if (authLoading) {
       return;
     }
 
-    // Se não tem user, para o loading
+    // No user after auth loaded = no roles needed
     if (!user) {
-      if (mounted) {
-        setUserRoles([]);
-        setLoading(false);
-      }
+      setUserRoles([]);
+      setInitialized(true);
       return;
     }
 
-    // Buscar roles
-    const loadRoles = async () => {
-      if (mounted) setLoading(true);
-      
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('user_roles')
-          .select('role, empresa_id')
-          .eq('user_id', user.id);
-
-        if (fetchError) throw fetchError;
-        
-        if (mounted) {
-          setUserRoles(data || []);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar roles do usuário:', err);
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Erro desconhecido');
-          setLoading(false);
-        }
-      }
-    };
-
-    loadRoles();
-
-    // Timeout de segurança de 5 segundos
-    const timeout = setTimeout(() => {
-      if (mounted) {
-        console.log('useUserRole: timeout de segurança atingido');
-        setLoading(false);
-      }
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      clearTimeout(timeout);
-    };
-  }, [user, authLoading]);
+    // User changed or first load
+    if (lastUserIdRef.current !== user.id) {
+      setInitialized(false);
+      fetchUserRoles();
+    }
+  }, [user, authLoading, fetchUserRoles]);
 
   const hasRole = (role: UserRole): boolean => {
     return userRoles.some(userRole => userRole.role === role);
@@ -140,12 +121,16 @@ export const useUserRole = (): UseUserRoleReturn => {
     return sortedRoles[0] || null;
   };
 
+  // Loading is true if: auth is loading OR (user exists but roles not initialized yet)
+  const isLoading = authLoading || (!!user && !initialized);
+
   return {
     userRoles,
     primaryRole: getPrimaryRole(),
     hasRole,
     hasRoleInCompany,
-    loading,
+    loading: isLoading,
+    initialized,
     error,
     refetch: fetchUserRoles
   };

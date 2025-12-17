@@ -16,7 +16,7 @@ import { LogOut } from "lucide-react";
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading, signOut, requiresPasswordChange } = useAuth();
-  const { primaryRole, loading: roleLoading } = useUserRole();
+  const { primaryRole, loading: roleLoading, initialized: rolesInitialized } = useUserRole();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
@@ -25,7 +25,9 @@ const Index = () => {
     }
   }, [user, loading, requiresPasswordChange]);
 
-  if (loading || roleLoading) {
+  // Show loading while auth or roles are loading
+  // Critical: only proceed after roles are truly initialized to prevent premature "Acesso Negado"
+  if (loading || roleLoading || (user && !rolesInitialized)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
