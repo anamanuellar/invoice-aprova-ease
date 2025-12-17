@@ -9,9 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, Clock, FileText, Building2, Calendar, DollarSign, Eye } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, FileText, Building2, Calendar, DollarSign, Eye, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { SecureFileLink } from '@/components/ui/secure-file-link';
+import { RequestTimeline } from '@/components/requests/RequestTimeline';
 
 interface Solicitacao {
   id: string;
@@ -690,6 +691,15 @@ export const RequestManagement = () => {
                     label="Ver Boleto" 
                   />
                 </div>
+              </div>
+
+              {/* Histórico / Timeline */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Histórico de Status
+                </h3>
+                <RequestTimeline solicitacaoId={viewingRequest.id} />
               </div>
             </div>
           )}

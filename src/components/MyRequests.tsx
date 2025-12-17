@@ -13,11 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2, Edit } from "lucide-react";
+import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircle, XCircle, AlertCircle, Eye, Trash2, Edit, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { SecureFileLink } from "@/components/ui/secure-file-link";
+import { RequestTimeline } from "@/components/requests/RequestTimeline";
 
 interface Request {
   id: string;
@@ -624,6 +625,15 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
                       label="Ver Boleto" 
                     />
                   </div>
+                </div>
+
+                {/* Histórico / Timeline */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Histórico de Status
+                  </h3>
+                  <RequestTimeline solicitacaoId={viewingRequest.id} />
                 </div>
               </div>
             )}

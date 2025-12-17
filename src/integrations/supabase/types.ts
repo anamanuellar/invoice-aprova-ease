@@ -143,6 +143,56 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacao_historico: {
+        Row: {
+          comentario: string | null
+          created_at: string
+          dias_para_vencimento: number | null
+          id: string
+          motivo_rejeicao: string | null
+          solicitacao_id: string
+          status_anterior: string | null
+          status_novo: string
+          tempo_no_status_anterior: unknown
+          usuario_id: string | null
+          usuario_nome: string
+        }
+        Insert: {
+          comentario?: string | null
+          created_at?: string
+          dias_para_vencimento?: number | null
+          id?: string
+          motivo_rejeicao?: string | null
+          solicitacao_id: string
+          status_anterior?: string | null
+          status_novo: string
+          tempo_no_status_anterior?: unknown
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Update: {
+          comentario?: string | null
+          created_at?: string
+          dias_para_vencimento?: number | null
+          id?: string
+          motivo_rejeicao?: string | null
+          solicitacao_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+          tempo_no_status_anterior?: unknown
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_historico_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_nf"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacoes_nf: {
         Row: {
           agencia: string | null
