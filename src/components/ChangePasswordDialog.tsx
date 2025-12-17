@@ -45,10 +45,22 @@ export const ChangePasswordDialog = ({ open, onSuccess }: ChangePasswordDialogPr
       return;
     }
 
-    if (data.newPassword.length < 6) {
+    if (data.newPassword.length < 8) {
       toast({
         title: "Erro",
-        description: "A senha deve ter no mínimo 6 caracteres",
+        description: "A senha deve ter no mínimo 8 caracteres",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(data.newPassword);
+    const hasNumber = /[0-9]/.test(data.newPassword);
+
+    if (!hasLetter || !hasNumber) {
+      toast({
+        title: "Erro",
+        description: "A senha deve conter letras e números",
         variant: "destructive",
       });
       return;
