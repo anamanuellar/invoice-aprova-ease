@@ -103,19 +103,14 @@ export default function AuthForm() {
   };
 
   const handleSignIn = async (data: AuthFormData) => {
-    console.log('handleSignIn chamado com:', data);
     setLoading(true);
     try {
-      console.log('Tentando fazer login no Supabase...');
       const { error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
-      console.log('Resposta do Supabase:', { error });
-      
       if (error) {
-        console.error('Erro de login:', error);
         if (error.message.includes('Invalid login credentials')) {
           toast({
             title: "Erro",
@@ -130,21 +125,18 @@ export default function AuthForm() {
           });
         }
       } else {
-        console.log('Login bem-sucedido!');
         toast({
           title: "Sucesso",
           description: "Login realizado com sucesso!",
         });
       }
     } catch (error) {
-      console.error('Erro não capturado:', error);
       toast({
         title: "Erro",
         description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
     } finally {
-      console.log('Finalizando processo de login, setLoading(false)');
       setLoading(false);
     }
   };

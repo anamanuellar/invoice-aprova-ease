@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -20,14 +20,17 @@ interface UseUserRoleReturn {
   refetch: () => void;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
 export const useUserRole = (): UseUserRoleReturn => {
   const { user, loading: authLoading } = useAuth();
   const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
+  const retryCountRef = useRef(0);
   
-  // Use user.id as stable dependency
   const userId = user?.id;
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export const useUserRole = (): UseUserRoleReturn => {
       setUserRoles([]);
       setInitialized(!authLoading);
       setError(null);
+      retryCountRef.current = 0;
       return;
     }
 
@@ -45,6 +49,7 @@ export const useUserRole = (): UseUserRoleReturn => {
     }
 
     let cancelled = false;
+    let retryTimeout: NodeJS.Timeout | null = null;
 
     const fetchRoles = async () => {
       try {
@@ -59,15 +64,36 @@ export const useUserRole = (): UseUserRoleReturn => {
 
         if (fetchError) throw fetchError;
 
+        // If no roles found and we haven't exceeded retries, try again
+        if ((!data || data.length === 0) && retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          retryTimeout = setTimeout(() => {
+            if (!cancelled) {
+              fetchRoles();
+            }
+          }, RETRY_DELAY);
+          return;
+        }
+
         setUserRoles(data || []);
+        setInitialized(true);
       } catch (err) {
         if (cancelled) return;
+        
+        // Retry on error
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          retryTimeout = setTimeout(() => {
+            if (!cancelled) {
+              fetchRoles();
+            }
+          }, RETRY_DELAY);
+          return;
+        }
+        
         console.error('Erro ao buscar roles do usuário:', err);
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      } finally {
-        if (!cancelled) {
-          setInitialized(true);
-        }
+        setInitialized(true);
       }
     };
 
@@ -75,10 +101,14 @@ export const useUserRole = (): UseUserRoleReturn => {
 
     return () => {
       cancelled = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
     };
   }, [userId, authLoading, fetchCount]);
 
   const refetch = () => {
+    retryCountRef.current = 0;
     setInitialized(false);
     setFetchCount(c => c + 1);
   };
@@ -111,7 +141,6 @@ export const useUserRole = (): UseUserRoleReturn => {
     return sortedRoles[0] || null;
   };
 
-  // Loading: auth loading OR (user exists but roles not initialized)
   const isLoading = authLoading || (!!userId && !initialized);
 
   return {
