@@ -17,6 +17,7 @@ import { ArrowLeft, FileText, Calendar, DollarSign, Building2, Clock, CheckCircl
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { SecureFileLink } from "@/components/ui/secure-file-link";
 
 interface Request {
   id: string;
@@ -614,22 +615,14 @@ export const MyRequests = ({ userId, onBack }: MyRequestsProps) => {
                 <div className="space-y-3">
                   <h3 className="font-semibold text-lg border-b pb-2">Arquivos Anexados</h3>
                   <div className="flex gap-2">
-                    {viewingRequest.arquivo_nf_url && (
-                      <Button variant="outline" asChild>
-                        <a href={viewingRequest.arquivo_nf_url} target="_blank" rel="noopener noreferrer">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Ver Nota Fiscal
-                        </a>
-                      </Button>
-                    )}
-                    {viewingRequest.arquivo_boleto_url && (
-                      <Button variant="outline" asChild>
-                        <a href={viewingRequest.arquivo_boleto_url} target="_blank" rel="noopener noreferrer">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Ver Boleto
-                        </a>
-                      </Button>
-                    )}
+                    <SecureFileLink 
+                      filePath={viewingRequest.arquivo_nf_url} 
+                      label="Ver Nota Fiscal" 
+                    />
+                    <SecureFileLink 
+                      filePath={viewingRequest.arquivo_boleto_url} 
+                      label="Ver Boleto" 
+                    />
                   </div>
                 </div>
               </div>

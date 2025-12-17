@@ -138,11 +138,8 @@ export default function InvoiceWizard({
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('invoices')
-        .getPublicUrl(fileName);
-
-      return data.publicUrl;
+      // Return just the file path (bucket is now private, we'll use signed URLs to access)
+      return fileName;
     } catch (error: any) {
       toast({
         title: "Erro",

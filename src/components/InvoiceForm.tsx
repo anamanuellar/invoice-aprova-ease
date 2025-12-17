@@ -251,12 +251,8 @@ export default function InvoiceForm({ user, companyId, onSuccess, onBack }: Invo
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
-
-      return data.publicUrl;
+      // Return just the file path (bucket is now private, we'll use signed URLs to access)
+      return fileName;
     } catch (error: any) {
       toast({
         title: "Erro",
