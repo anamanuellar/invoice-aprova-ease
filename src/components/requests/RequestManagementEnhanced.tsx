@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { RequestFilters, FilterState } from './RequestFilters';
 import { SecureFileLink } from '@/components/ui/secure-file-link';
+import { RequestTimeline } from './RequestTimeline';
 import { 
   CheckCircle, XCircle, Clock, FileText, Building2, Calendar, 
-  DollarSign, Eye, AlertTriangle, CheckCheck
+  DollarSign, Eye, AlertTriangle, CheckCheck, History
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
@@ -726,6 +727,15 @@ export function RequestManagementEnhanced() {
                   filePath={viewingRequest.arquivo_boleto_url} 
                   label="Ver Boleto" 
                 />
+              </div>
+
+              {/* Histórico / Timeline */}
+              <div className="space-y-3">
+                <h4 className="font-semibold border-b pb-2 flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Histórico de Status
+                </h4>
+                <RequestTimeline solicitacaoId={viewingRequest.id} />
               </div>
             </div>
           )}
