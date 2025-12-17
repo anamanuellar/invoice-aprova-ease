@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { RequestFilters, FilterState } from './RequestFilters';
+import { SecureFileLink } from '@/components/ui/secure-file-link';
 import { 
   CheckCircle, XCircle, Clock, FileText, Building2, Calendar, 
   DollarSign, Eye, AlertTriangle, CheckCheck
@@ -717,22 +718,14 @@ export function RequestManagementEnhanced() {
               )}
 
               <div className="flex gap-2">
-                {viewingRequest.arquivo_nf_url && (
-                  <Button variant="outline" asChild>
-                    <a href={viewingRequest.arquivo_nf_url} target="_blank" rel="noopener noreferrer">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Ver NF
-                    </a>
-                  </Button>
-                )}
-                {viewingRequest.arquivo_boleto_url && (
-                  <Button variant="outline" asChild>
-                    <a href={viewingRequest.arquivo_boleto_url} target="_blank" rel="noopener noreferrer">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Ver Boleto
-                    </a>
-                  </Button>
-                )}
+                <SecureFileLink 
+                  filePath={viewingRequest.arquivo_nf_url} 
+                  label="Ver NF" 
+                />
+                <SecureFileLink 
+                  filePath={viewingRequest.arquivo_boleto_url} 
+                  label="Ver Boleto" 
+                />
               </div>
             </div>
           )}
