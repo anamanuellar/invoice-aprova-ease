@@ -26,8 +26,7 @@ const Index = () => {
   }, [user, loading, requiresPasswordChange]);
 
   // Show loading while auth or roles are loading
-  // Critical: only proceed after roles are truly initialized to prevent premature "Acesso Negado"
-  if (loading || roleLoading || (user && !rolesInitialized)) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
